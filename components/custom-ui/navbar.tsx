@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, BarChart3, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, BarChart3, LogOut } from "lucide-react";
 import { useRouter } from 'next/navigation';
 
 interface NavbarProps {
