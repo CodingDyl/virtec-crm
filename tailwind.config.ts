@@ -12,6 +12,11 @@ const config: Config = {
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
+			space1: '#2d3250',
+			space2: '#424769',
+			spaceAlt: '#676f9d',
+			spaceText: '#ffffff',
+			spaceAccent: '#f9b17a',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'
