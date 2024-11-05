@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, BarChart3, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, BarChart3, LogOut, FileText, Calculator } from "lucide-react";
 import { useRouter } from 'next/navigation';
 
 interface NavbarProps {
@@ -46,6 +46,23 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             >
               <BarChart3 className="mr-2 h-4 w-4" />
               Projects
+            </Button>
+            <div className="h-px bg-spaceAccent my-2" />
+            <Button 
+              variant="ghost" 
+              className={`w-full justify-start ${activeTab === 'generate-quote' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              onClick={() => setActiveTab('generate-quote')}
+            >
+              <Calculator className="mr-2 h-4 w-4" />
+              Generate Quote
+            </Button>
+            <Button 
+              variant="ghost" 
+              className={`w-full justify-start ${activeTab === 'quotes' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              onClick={() => setActiveTab('quotes')}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Quotes
             </Button>
           </div>
           
