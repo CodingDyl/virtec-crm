@@ -8,6 +8,7 @@ import CustomersTable from './custom-ui/customers-table'
 import OverviewSection from './custom-ui/overview-section'
 import GenerateQuote from './custom-ui/generate-quote'
 import Quotes from './custom-ui/quotes'
+import LetterAgreement from './custom-ui/letter-agreement'
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview')
@@ -37,6 +38,9 @@ export function Dashboard() {
           </TabsContent>
           <TabsContent value="generate-quote" className="space-y-4">
             <GenerateQuote />
+          </TabsContent>
+          <TabsContent value="letter-agreement" className="space-y-4">
+            <LetterAgreement />
           </TabsContent>
           <TabsContent value="quotes" className="space-y-4">
             <Quotes />
