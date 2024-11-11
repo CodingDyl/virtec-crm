@@ -5,7 +5,6 @@ import {
   Text, 
   View, 
   StyleSheet, 
-  PDFDownloadLink, 
   pdf
 } from '@react-pdf/renderer';
 import { format } from 'date-fns';
@@ -13,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { db, storage } from '@/firebase/firebaseConfig';
 import { collection, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { toast } from "sonner"
 
 // Define styles for PDF
 const styles = StyleSheet.create({
@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
 // Add interface for form data
 interface FormData {
   clientId: string;
+  projectId: string;
   projectType: string;
   complexity: 'Low' | 'Medium' | 'High';
   urgency: 'Standard' | 'Rush' | 'Extreme Rush';
@@ -111,14 +112,15 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({ formDa
       // Get the download URL
       const pdfUrl = await getDownloadURL(storageRef);
       
-      // Create quote document with PDF URL
+      // Create quote document with PDF URL and correct project_type field
       const quoteData = {
         ...formData,
         project_id: projectId,
+        project_type: formData.projectType,
         total_amount: calculateQuote(),
         status: 'pending',
         created_at: serverTimestamp(),
-        pdf_url: pdfUrl, // Add the PDF URL to the quote document
+        pdf_url: pdfUrl,
       }
       
       await setDoc(quoteRef, quoteData)
@@ -129,30 +131,21 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({ formDa
         quoteId: quoteRef.id
       })
 
-      return pdfBlob;
+      toast.success("Quote generated successfully!")
     } catch (error) {
       console.error("Error generating quote:", error);
-      throw error;
+      toast.error("Failed to generate quote. Please try again.")
     }
   };
 
   return (
-    <PDFDownloadLink
-      document={<QuotePDF formData={formData} totalAmount={calculateQuote()} />}
-      fileName={`quote-${format(new Date(), 'yyyy-MM-dd')}.pdf`}
+    <Button 
+      className="w-full bg-spaceAccent text-space1 hover:bg-spaceAlt mt-6"
       onClick={handleGenerateQuote}
+      disabled={!projectId}
     >
-      {/* @ts-expect-error was not working */}
-      {({ loading }) => (
-        <Button 
-          className="w-full bg-spaceAccent text-space1 hover:bg-spaceAlt mt-6"
-          // @ts-expect-error was not working
-          disabled={loading || !formData.projectId}
-        >
-          {loading ? 'Generating PDF...' : 'Download Quote PDF'}
-        </Button>
-      )}
-    </PDFDownloadLink>
+      Generate Quote
+    </Button>
   );
 };
 

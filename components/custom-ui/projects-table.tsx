@@ -133,7 +133,7 @@ export default function ProjectsTable() {
                 {projects.map((project) => (
                   <TableRow 
                     key={project.id} 
-                    className="hover:bg-spaceAccent cursor-pointer"
+                    className="hover:bg-spaceAlt cursor-pointer"
                     onClick={() => handleEditClick(project)}
                   >
                     <TableCell className="text-spaceText">{project.projectType}</TableCell>
@@ -150,7 +150,8 @@ export default function ProjectsTable() {
                             e.stopPropagation();
                             fetchProjectWithQuote(project);
                           }}
-                          variant="outline"
+                          variant="default"
+                          className="bg-spaceAccent hover:bg-space1 text-spaceText"
                           size="sm"
                         >
                           View Quote

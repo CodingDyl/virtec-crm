@@ -12,6 +12,7 @@ import { GenerateQuoteButton } from './generate-quote-button'
 
 interface QuoteFormData {
   projectId: string
+  projectType: string
   complexity: 'Low' | 'Medium' | 'High'
   urgency: 'Standard' | 'Rush' | 'Extreme Rush'
   features: string[]
@@ -35,6 +36,7 @@ export default function GenerateQuote() {
   const [projects, setProjects] = useState<Project[]>([])
   const [formData, setFormData] = useState<QuoteFormData>({
     projectId: '',
+    projectType: '',
     complexity: 'Medium',
     urgency: 'Standard',
     features: [],
@@ -67,6 +69,18 @@ export default function GenerateQuote() {
     return baseQuote * complexityMultiplier * urgencyMultiplier
   }
 
+  const resetForm = () => {
+    setFormData({
+      projectId: '',
+      projectType: '',
+      complexity: 'Medium',
+      urgency: 'Standard',
+      features: [],
+      estimatedHours: 0,
+      hourlyRate: 300
+    })
+  }
+
   return (
     <Card className="bg-space2 border-spaceAccent">
       <CardHeader>
@@ -80,7 +94,14 @@ export default function GenerateQuote() {
         <div className="space-y-2">
           <Label className="text-spaceText">Project</Label>
           <Select 
-            onValueChange={(value) => setFormData({...formData, projectId: value})}
+            onValueChange={(value) => {
+              const selectedProject = projects.find(p => p.id === value);
+              setFormData({
+                ...formData, 
+                projectId: value,
+                projectType: selectedProject?.projectType || ''
+              });
+            }}
           >
             <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
               <SelectValue placeholder="Select a project" />
@@ -168,6 +189,7 @@ export default function GenerateQuote() {
           formData={formData} 
           calculateQuote={calculateQuote}
           projectId={formData.projectId}
+          onSuccess={resetForm}
         />
       </CardContent>
     </Card>
