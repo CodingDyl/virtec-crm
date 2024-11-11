@@ -116,7 +116,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
             <select 
               id="status"
               value={formData.status}
-              onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+              onChange={(e) => setFormData({...formData, status: e.target.value})}
               className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
             >
               <option value="active">Active</option>
