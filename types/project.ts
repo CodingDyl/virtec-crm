@@ -5,6 +5,5 @@ export interface Project {
   clientName: string;
   status: 'active' | 'completed' | 'on-hold';
   quoteId: string;
-  amount: number;
   completion: number;
 } 

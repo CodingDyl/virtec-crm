@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Project } from '@/types/project';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddProjectModal } from "./add-project-modal";
 import { Progress } from "@/components/ui/progress";
+import { Quote } from '@/types/quote';
 
 export default function ProjectsTable() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -21,10 +22,11 @@ export default function ProjectsTable() {
   const [editForm, setEditForm] = useState({
     projectType: '',
     clientName: '',
-    amount: 0,
     completion: 0,
     status: ''
   });
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
 
   const fetchProjects = async () => {
     setIsLoading(true);
@@ -45,7 +47,6 @@ export default function ProjectsTable() {
     setEditForm({
       projectType: project.projectType,
       clientName: project.clientName,
-      amount: project.amount,
       completion: project.completion,
       status: project.status
     });
@@ -62,15 +63,31 @@ export default function ProjectsTable() {
       await updateDoc(projectRef, {
         projectType: editForm.projectType,
         clientName: editForm.clientName,
-        amount: editForm.amount,
         completion: editForm.completion,
-        status: status
+        status: status,
+        quoteId: editingProject.quoteId
       });
       
       await fetchProjects();
       setEditDialogOpen(false);
     } catch (error) {
       console.error("Error updating project: ", error);
+    }
+  };
+
+  const fetchProjectWithQuote = async (project: Project) => {
+    if (project.quoteId) {
+      try {
+        const quoteDoc = await getDoc(doc(db, "quotes", project.quoteId));
+        
+        if (quoteDoc.exists()) {
+          const quoteData = quoteDoc.data() as Quote;
+          setSelectedQuote(quoteData);
+          setQuoteDialogOpen(true);
+        }
+      } catch (error) {
+        console.error("Error fetching quote:", error);
+      }
     }
   };
 
@@ -108,7 +125,7 @@ export default function ProjectsTable() {
                   <TableHead className="text-spaceAlt">Project Type</TableHead>
                   <TableHead className="text-spaceAlt">Client</TableHead>
                   <TableHead className="text-spaceAlt">Status</TableHead>
-                  <TableHead className="text-spaceAlt">Amount</TableHead>
+                  <TableHead className="text-spaceAlt">Quote</TableHead>
                   <TableHead className="text-spaceAlt">Completion</TableHead>
                 </TableRow>
               </TableHeader>
@@ -126,14 +143,26 @@ export default function ProjectsTable() {
                         {project.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-spaceText">${project.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-spaceText">
+                      {project.quoteId ? (
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fetchProjectWithQuote(project);
+                          }}
+                          variant="outline"
+                          size="sm"
+                        >
+                          View Quote
+                        </Button>
+                      ) : (
+                        <span className="text-gray-400">No Quote Found</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-spaceText">
                       <div className="space-y-1">
                         <span>{project.completion}%</span>
-                        <Progress 
-                          value={project.completion} 
-                          className="h-2 bg-space1" 
-                        />
+                        <Progress value={project.completion} className="h-2 bg-space1" />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -167,15 +196,6 @@ export default function ProjectsTable() {
               />
             </div>
             <div>
-              <label className="text-spaceText">Amount</label>
-              <Input
-                type="number"
-                value={editForm.amount}
-                onChange={(e) => setEditForm(prev => ({ ...prev, amount: Number(e.target.value) }))}
-                className="bg-space1 border-spaceAccent text-spaceText"
-              />
-            </div>
-            <div>
               <label className="text-spaceText">Completion (%)</label>
               <Input
                 type="number"
@@ -193,6 +213,29 @@ export default function ProjectsTable() {
               Update Project
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={quoteDialogOpen} onOpenChange={setQuoteDialogOpen}>
+        <DialogContent className="bg-space2 border-spaceAccent">
+          <DialogHeader>
+            <DialogTitle className="text-spaceText">Quote Details</DialogTitle>
+          </DialogHeader>
+          {selectedQuote && (
+            <div className="space-y-4">
+              <div className="text-spaceText">
+                <p>Amount: R{selectedQuote.total_amount?.toLocaleString()}</p>
+                <p>Status: {selectedQuote.status}</p>
+                <p>Created: {selectedQuote.created_at?.toDate().toUTCString()}</p>
+              </div>
+              <Button
+                onClick={() => window.open(selectedQuote.pdf_url, '_blank')}
+                className="bg-spaceAccent hover:bg-spaceAlt text-spaceText w-full"
+              >
+                Download Quote PDF
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

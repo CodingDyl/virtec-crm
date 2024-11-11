@@ -1,16 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/firebase/firebaseConfig'
+import { Project } from '@/types/project'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { customers, projects } from "@/constants"
+import { GenerateQuoteButton } from './generate-quote-button'
 
 interface QuoteFormData {
-  clientId: string
-  projectType: string
+  projectId: string
   complexity: 'Low' | 'Medium' | 'High'
   urgency: 'Standard' | 'Rush' | 'Extreme Rush'
   features: string[]
@@ -31,15 +32,32 @@ const URGENCY_MULTIPLIERS = {
 }
 
 export default function GenerateQuote() {
+  const [projects, setProjects] = useState<Project[]>([])
   const [formData, setFormData] = useState<QuoteFormData>({
-    clientId: '',
-    projectType: '',
+    projectId: '',
     complexity: 'Medium',
     urgency: 'Standard',
     features: [],
     estimatedHours: 0,
     hourlyRate: 300
   })
+
+  const fetchProjects = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "projects"))
+      const projectsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Project[]
+      setProjects(projectsData)
+    } catch (error) {
+      console.error("Error fetching projects:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchProjects()
+  }, [])
 
   const calculateQuote = () => {
     const baseQuote = formData.estimatedHours * formData.hourlyRate
@@ -58,38 +76,19 @@ export default function GenerateQuote() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Client Selection */}
+        {/* Project Selection */}
         <div className="space-y-2">
-          <Label className="text-spaceText">Client</Label>
+          <Label className="text-spaceText">Project</Label>
           <Select 
-            onValueChange={(value) => setFormData({...formData, clientId: value})}
+            onValueChange={(value) => setFormData({...formData, projectId: value})}
           >
             <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
-              <SelectValue placeholder="Select a client" />
-            </SelectTrigger>
-            <SelectContent className="bg-space1 text-spaceText">
-              {customers.map((customer) => (
-                <SelectItem key={customer.email} value={customer.email}>
-                  {customer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Project Type */}
-        <div className="space-y-2">
-          <Label className="text-spaceText">Project Type</Label>
-          <Select
-            onValueChange={(value) => setFormData({...formData, projectType: value})}
-          >
-            <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
-              <SelectValue placeholder="Select project type" />
+              <SelectValue placeholder="Select a project" />
             </SelectTrigger>
             <SelectContent className="bg-space1 text-spaceText">
               {projects.map((project) => (
-                <SelectItem key={project.name} value={project.name}>
-                  {project.name}
+                <SelectItem key={project.id} value={project.id}>
+                  {project.projectType} - {project.clientName}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -164,15 +163,12 @@ export default function GenerateQuote() {
           </p>
         </div>
 
-        <Button 
-          className="w-full bg-spaceAccent text-space1 hover:bg-spaceAlt"
-          onClick={() => {
-            // TODO: Implement quote generation and saving
-            console.log('Generate Quote:', formData)
-          }}
-        >
-          Generate Quote
-        </Button>
+        <GenerateQuoteButton 
+          // @ts-expect-error was not working
+          formData={formData} 
+          calculateQuote={calculateQuote}
+          projectId={formData.projectId}
+        />
       </CardContent>
     </Card>
   )
