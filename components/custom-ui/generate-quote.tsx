@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { GenerateQuoteButton } from './generate-quote-button'
+import { features } from '@/constants'
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface QuoteFormData {
   projectId: string
@@ -18,6 +20,8 @@ interface QuoteFormData {
   features: string[]
   estimatedHours: number
   hourlyRate: number
+  hostingCost: number
+  maintenanceCost: number
 }
 
 const COMPLEXITY_MULTIPLIERS = {
@@ -41,8 +45,13 @@ export default function GenerateQuote() {
     urgency: 'Standard',
     features: [],
     estimatedHours: 0,
-    hourlyRate: 300
+    hourlyRate: 300,
+    hostingCost: 0,
+    maintenanceCost: 0
   })
+
+  const [showHosting, setShowHosting] = useState(false)
+  const [showMaintenance, setShowMaintenance] = useState(false)
 
   const fetchProjects = async () => {
     try {
@@ -66,7 +75,9 @@ export default function GenerateQuote() {
     const complexityMultiplier = COMPLEXITY_MULTIPLIERS[formData.complexity]
     const urgencyMultiplier = URGENCY_MULTIPLIERS[formData.urgency]
     
-    return baseQuote * complexityMultiplier * urgencyMultiplier
+    return (baseQuote * complexityMultiplier * urgencyMultiplier) + 
+           formData.hostingCost + 
+           formData.maintenanceCost
   }
 
   const resetForm = () => {
@@ -77,8 +88,12 @@ export default function GenerateQuote() {
       urgency: 'Standard',
       features: [],
       estimatedHours: 0,
-      hourlyRate: 300
+      hourlyRate: 300,
+      hostingCost: 0,
+      maintenanceCost: 0
     })
+    setShowHosting(false)
+    setShowMaintenance(false)
   }
 
   return (
@@ -175,6 +190,57 @@ export default function GenerateQuote() {
             />
           </div>
         </div>
+
+        {/* Features Selection */}
+        <div className="space-y-2">
+          <Label className="text-spaceText">Features Required</Label>
+          <div className="grid grid-cols-2 gap-4 p-4 bg-space1 rounded-lg">
+            {features.map((feature) => (
+              <div key={feature.name} className="flex items-center space-x-2">
+                <Checkbox
+                  checked={formData.features.includes(feature.name)}
+                  onCheckedChange={(checked) => {
+                    const newFeatures = checked
+                      ? [...formData.features, feature.name]
+                      : formData.features.filter(f => f !== feature.name)
+                    
+                    setFormData({ ...formData, features: newFeatures })
+                    setShowHosting(newFeatures.some(f => 
+                      ['Dedicated Hosting', 'Cloud Hosting', 'Shared Hosting'].includes(f)))
+                    setShowMaintenance(newFeatures.includes('Maintenance'))
+                  }}
+                />
+                <Label className="text-spaceText">{feature.name}</Label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Conditional Hosting Section */}
+        {showHosting && (
+          <div className="space-y-2">
+            <Label className="text-spaceText">Monthly Hosting Cost (R)</Label>
+            <Input 
+              type="number"
+              className="bg-space1 text-spaceText border-spaceAccent"
+              value={formData.hostingCost}
+              onChange={(e) => setFormData({...formData, hostingCost: parseInt(e.target.value)})}
+            />
+          </div>
+        )}
+
+        {/* Conditional Maintenance Section */}
+        {showMaintenance && (
+          <div className="space-y-2">
+            <Label className="text-spaceText">Monthly Maintenance Cost (R)</Label>
+            <Input 
+              type="number"
+              className="bg-space1 text-spaceText border-spaceAccent"
+              value={formData.maintenanceCost}
+              onChange={(e) => setFormData({...formData, maintenanceCost: parseInt(e.target.value)})}
+            />
+          </div>
+        )}
 
         {/* Quote Preview */}
         <div className="mt-6 p-4 bg-space1 rounded-lg">

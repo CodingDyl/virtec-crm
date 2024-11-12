@@ -41,8 +41,8 @@ export function Dashboard() {
               <TabsTrigger value="customers" onClick={() => setActiveTab('customers')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Customers</TabsTrigger>
               <TabsTrigger value="projects" onClick={() => setActiveTab('projects')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Projects</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Quotes</TabsTrigger>
-              <TabsTrigger value="generate-quote" onClick={() => setActiveTab('generate-quote')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Generate Quote</TabsTrigger>
-              <TabsTrigger value="letter-agreement" onClick={() => setActiveTab('letter-agreement')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Letter Agreement</TabsTrigger>
+              {/* <TabsTrigger value="generate-quote" onClick={() => setActiveTab('generate-quote')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Generate Quote</TabsTrigger>
+              <TabsTrigger value="letter-agreement" onClick={() => setActiveTab('letter-agreement')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Letter Agreement</TabsTrigger> */}
             </TabsList>
             <TabsContent value="overview" className="space-y-4">
               <OverviewSection />

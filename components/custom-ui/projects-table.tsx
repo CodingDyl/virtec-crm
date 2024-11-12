@@ -241,6 +241,7 @@ export default function ProjectsTable() {
       </Dialog>
 
       <AddProjectModal onProjectAdded={fetchProjects} />
+
     </>
   );
 }

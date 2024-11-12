@@ -47,6 +47,14 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
               <BarChart3 className="mr-2 h-4 w-4" />
               Projects
             </Button>
+            <Button 
+              variant="ghost" 
+              className={`w-full justify-start ${activeTab === 'quotes' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              onClick={() => setActiveTab('quotes')}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Quotes
+            </Button>
             <div className="h-px bg-spaceAccent my-2" />
             <Button 
               variant="ghost" 
@@ -58,22 +66,13 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'quotes' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
-              onClick={() => setActiveTab('quotes')}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Quotes
-            </Button>
-          </div>
-          <div className="h-px bg-spaceAccent my-2" />
-          <Button 
-              variant="ghost" 
               className={`w-full justify-start ${activeTab === 'letter-agreement' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
               onClick={() => setActiveTab('letter-agreement')}
             >
               <FileText className="mr-2 h-4 w-4" />
               Letter Agreement
             </Button>
+          </div>
           
           <div className="mt-auto">
             <Button 

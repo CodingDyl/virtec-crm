@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ref, deleteObject } from 'firebase/storage';
+import { storage } from '@/firebase/firebaseConfig';
 
 export default function Quotes() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -49,12 +51,20 @@ export default function Quotes() {
     fetchQuotes();
   }, []);
 
-  const handleDeleteQuote = async (quoteId: string) => {
+  const handleDeleteQuote = async (quoteId: string, pdfUrl: string) => {
     try {
+      // Create a reference to the file to delete
+      const pdfRef = ref(storage, pdfUrl);
+
+      // Delete the file
+      await deleteObject(pdfRef);
+
+      // Delete the quote document
       await deleteDoc(doc(db, "quotes", quoteId));
+
       await fetchQuotes();
     } catch (error) {
-      console.error("Error deleting quote:", error);
+      console.error("Error deleting quote or PDF:", error);
     }
   };
 
@@ -146,7 +156,7 @@ export default function Quotes() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteQuote(quote.id)}
+                      onClick={() => handleDeleteQuote(quote.id, quote.pdf_url)}
                     >
                       Delete
                     </Button>

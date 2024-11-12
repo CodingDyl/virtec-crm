@@ -22,4 +22,25 @@ const projects = [
     { name: 'Jun', total: 28000 },
   ];
 
-export { projects, customers, revenueData };
+  const features = [
+    { name: 'Responsive Design', description: 'Your website will look great on any device.' },
+    { name: 'Customizable', description: 'You can customize your website to your liking.' },
+    { name: 'SEO Friendly', description: 'Your website will be SEO friendly.' },
+    { name: 'Analytics', description: 'You can track your website traffic.' },
+    { name: 'Security', description: 'Your website will be secure.' },
+    { name: 'Support', description: 'You will have access to our support team.' },
+    { name: 'Maintenance', description: 'We will maintain your website for you.' },
+    { name: 'Updates', description: 'We will keep your website updated with the latest features.' },
+    { name: 'Backup', description: 'We will backup your website data.' },
+    { name: 'Performance', description: 'Your website will be performant.' },
+    { name: 'Scalability', description: 'Your website will be scalable.' },
+    { name: 'Custom Domain', description: 'You can use your own domain.' },
+    { name: 'SSL Certificate', description: 'Your website will be secure with an SSL certificate.' },
+    { name: 'CDN', description: 'Your website will be served with a CDN.' },
+    { name: 'Firewall', description: 'Your website will be protected with a firewall.' },
+    { name: 'Dedicated Hosting', description: 'Your website will be hosted on a dedicated server.' },
+    { name: 'Cloud Hosting', description: 'Your website will be hosted on the cloud.' },
+    { name: 'Shared Hosting', description: 'Your website will be hosted on a shared server.' },
+  ];
+
+export { projects, customers, revenueData, features };
