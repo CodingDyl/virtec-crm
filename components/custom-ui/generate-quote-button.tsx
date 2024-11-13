@@ -108,6 +108,7 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
   projectId,
   onSuccess,
 }) => {
+  const [isLoading, setIsLoading] = useState(false);
   // @ts-ignore
   const [clientData, setClientData] = useState<any>(null);
 
@@ -137,6 +138,7 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
   }, [projectId]);
 
   const handleGenerateQuote = async () => {
+    setIsLoading(true);
     try {
       const quoteRef = doc(collection(db, "quotes"));
       
@@ -146,7 +148,7 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
       
       // Create a sanitized client name for the file name
       const sanitizedClientName = clientData?.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unknown_client';
-      const storageRef = ref(storage, `quotes/${sanitizedClientName}_quote.pdf`);
+      const storageRef = ref(storage, `quotes/${sanitizedClientName}_${quoteRef.id}_quote.pdf`);
       
       await uploadBytes(storageRef, pdfBlob);
       const pdfUrl = await getDownloadURL(storageRef);
@@ -176,6 +178,8 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
     } catch (error) {
       console.error("Error generating quote:", error);
       toast.error("Failed to generate quote. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -183,9 +187,9 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
     <Button 
       className="w-full bg-spaceAccent text-space1 hover:bg-spaceAlt mt-6"
       onClick={handleGenerateQuote}
-      disabled={!projectId}
+      disabled={!projectId || isLoading}
     >
-      Generate Quote
+      {isLoading ? "Generating..." : "Generate Quote"}
     </Button>
   );
 };
