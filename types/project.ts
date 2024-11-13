@@ -1,9 +1,11 @@
 export interface Project {
   id: string;
   projectType: string;
-  clientId: string;
   clientName: string;
-  status: 'active' | 'completed' | 'on-hold';
-  quoteId: string;
+  status: string;
   completion: number;
+  quoteId?: string;
+  agreementUrl?: string;
+  agreementStatus?: 'pending' | 'signed';
+  // ... other existing fields ...
 } 

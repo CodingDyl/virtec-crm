@@ -144,7 +144,10 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
         <QuotePDF formData={formData} totalAmount={calculateQuote()} clientData={clientData} />
       ).toBlob();
       
-      const storageRef = ref(storage, `quotes/${quoteRef.id}.pdf`);
+      // Create a sanitized client name for the file name
+      const sanitizedClientName = clientData?.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unknown_client';
+      const storageRef = ref(storage, `quotes/${sanitizedClientName}_quote.pdf`);
+      
       await uploadBytes(storageRef, pdfBlob);
       const pdfUrl = await getDownloadURL(storageRef);
       

@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { AddProjectModal } from "./add-project-modal";
 import { Progress } from "@/components/ui/progress";
 import { Quote } from '@/types/quote';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/firebase/firebaseConfig';
+import { toast } from 'react-toastify';
 
 export default function ProjectsTable() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -104,6 +107,37 @@ export default function ProjectsTable() {
     }
   };
 
+  const handleUploadSignedAgreement = async (project: Project) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf';
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const storageRef = ref(storage, `agreements/${project.id}_signed_agreement.pdf`);
+        await uploadBytes(storageRef, file);
+        const pdfUrl = await getDownloadURL(storageRef);
+
+        const projectRef = doc(db, "projects", project.id);
+        await updateDoc(projectRef, {
+          agreementUrl: pdfUrl,
+          agreementStatus: 'signed'
+        });
+
+        await fetchProjects();
+        toast.success("Signed agreement uploaded successfully!");
+      } catch (error) {
+        console.error("Error uploading signed agreement:", error);
+        toast.error("Failed to upload signed agreement");
+      }
+    };
+
+    input.click();
+  };
+
   return (
     <>
       <Card className="bg-space2 border-spaceAccent">
@@ -127,6 +161,7 @@ export default function ProjectsTable() {
                   <TableHead className="text-spaceAlt">Status</TableHead>
                   <TableHead className="text-spaceAlt">Quote</TableHead>
                   <TableHead className="text-spaceAlt">Completion</TableHead>
+                  <TableHead className="text-spaceAlt">Agreement</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -165,6 +200,38 @@ export default function ProjectsTable() {
                         <span>{project.completion}%</span>
                         <Progress value={project.completion} className="h-2 bg-space1" />
                       </div>
+                    </TableCell>
+                    <TableCell className="text-spaceText">
+                      {project.agreementUrl ? (
+                        <div className="space-x-2">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(project.agreementUrl, '_blank');
+                            }}
+                            variant="default"
+                            className="bg-spaceAccent hover:bg-space1 text-spaceText"
+                            size="sm"
+                          >
+                            View Agreement
+                          </Button>
+                          {project.agreementStatus === 'pending' && (
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUploadSignedAgreement(project);
+                              }}
+                              variant="outline"
+                              className="border-spaceAccent text-spaceText"
+                              size="sm"
+                            >
+                              Upload Signed
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">No Agreement</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

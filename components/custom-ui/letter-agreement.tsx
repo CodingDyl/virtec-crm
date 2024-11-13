@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
@@ -9,48 +9,162 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { customers } from '@/constants'
+import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db, storage } from '@/firebase/firebaseConfig';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Project } from '@/types/project';
+import { 
+  Document, 
+  Page, 
+  Text, 
+  View, 
+  StyleSheet, 
+  pdf 
+} from '@react-pdf/renderer';
+import { toast } from 'react-toastify';
+import { Quote } from '@/types/quote';
+
+// Add PDF styles
+const styles = StyleSheet.create({
+  page: {
+    padding: 30,
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  section: {
+    margin: 10,
+    padding: 10,
+  },
+  text: {
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  signatureSection: {
+    marginTop: 50,
+    borderTop: 1,
+    paddingTop: 10,
+  },
+  signatureLine: {
+    width: '60%',
+    borderBottom: 1,
+    marginTop: 40,
+  },
+});
 
 interface LetterAgreementData {
-  clientId: string
+  projectId: string
   date: Date
   paymentMethod: string
   paymentDuration: string
   quoteId: string
   requirements: string
+  selectedQuote: Quote | null
 }
 
 export default function LetterAgreement() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [formData, setFormData] = useState<LetterAgreementData>({
-    clientId: '',
+    projectId: '',
     date: new Date(),
     paymentMethod: '',
     paymentDuration: '',
     quoteId: '',
-    requirements: ''
-  })
+    requirements: '',
+    selectedQuote: null
+  });
 
-  const generateAgreement = () => {
-    // TODO: Generate PDF or document with agreement details
-    const agreement = `
-      LETTER OF AGREEMENT
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const querySnapshot = await getDocs(collection(db, "projects"));
+      const projectsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Project[];
+      setProjects(projectsData);
+    };
+    fetchProjects();
+  }, []);
 
-      Date: ${formData.date.toLocaleDateString()}
+  useEffect(() => {
+    const fetchQuotes = async () => {
+      const querySnapshot = await getDocs(collection(db, "quotes"));
+      const quotesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Quote[];
+      setQuotes(quotesData);
+    };
+    fetchQuotes();
+  }, []);
 
-      Dear [Client Name],
+  const generateAgreement = async () => {
+    if (!selectedProject || !formData.selectedQuote) return;
 
-      This letter confirms our agreement for web development services as detailed in Quote #${formData.quoteId}.
+    const agreementDoc = (
+      <Document>
+        <Page size="A4" style={styles.page}>
+          <Text style={styles.title}>LETTER OF AGREEMENT</Text>
+          
+          <View style={styles.section}>
+            <Text style={styles.text}>Date: {format(formData.date, "MMMM dd, yyyy")}</Text>
+            <Text style={styles.text}>Project: {selectedProject.projectType}</Text>
+            <Text style={styles.text}>Client: {selectedProject.clientName}</Text>
+          </View>
 
-      Project Requirements:
-      ${formData.requirements}
+          <View style={styles.section}>
+            <Text style={styles.text}>
+              This letter confirms our agreement for web development services as detailed in Quote #{formData.quoteId}.
+            </Text>
+          </View>
 
-      Payment Terms:
-      Method: ${formData.paymentMethod}
-      Duration: ${formData.paymentDuration}
+          <View style={styles.section}>
+            <Text style={styles.text}>Project Requirements:</Text>
+            {formData.selectedQuote.features?.map((feature, index) => (
+              <Text key={index} style={styles.text}>• {feature}</Text>
+            ))}
+            <Text style={styles.text}>{formData.requirements}</Text>
+          </View>
 
-      [Signature blocks would go here]
-    `
-    console.log('Generated Agreement:', agreement)
-  }
+          <View style={styles.section}>
+            <Text style={styles.text}>Financial Details:</Text>
+            <Text style={styles.text}>Total Amount: R{formData.selectedQuote.total_amount.toLocaleString()}</Text>
+            <Text style={styles.text}>Payment Method: {formData.paymentMethod}</Text>
+            <Text style={styles.text}>Payment Duration: {formData.paymentDuration}</Text>
+          </View>
+
+          <View style={styles.signatureSection}>
+            <Text style={styles.text}>Client Signature:</Text>
+            <View style={styles.signatureLine} />
+            <Text style={styles.text}>Date: _________________</Text>
+          </View>
+        </Page>
+      </Document>
+    );
+
+    try {
+      const pdfBlob = await pdf(agreementDoc).toBlob();
+      const storageRef = ref(storage, `letter_of_agreements/${selectedProject.clientName}_${selectedProject.projectType}_agreement.pdf`);
+      await uploadBytes(storageRef, pdfBlob);
+      const pdfUrl = await getDownloadURL(storageRef);
+
+      // Update project with agreement URL
+      const projectRef = doc(db, "projects", selectedProject.id);
+      await updateDoc(projectRef, {
+        agreementUrl: pdfUrl,
+        agreementStatus: 'pending'
+      });
+
+      toast.success("Agreement generated successfully!");
+    } catch (error) {
+      console.error("Error generating agreement:", error);
+      toast.error("Failed to generate agreement");
+    }
+  };
 
   return (
     <Card className="bg-space2 border-spaceAccent">
@@ -61,17 +175,23 @@ export default function LetterAgreement() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Client Selection */}
+        {/* Project Selection - Replace Client Selection */}
         <div className="space-y-2">
-          <Label className="text-spaceText">Client</Label>
-          <Select onValueChange={(value) => setFormData({...formData, clientId: value})}>
+          <Label className="text-spaceText">Project</Label>
+          <Select 
+            onValueChange={(value) => {
+              const project = projects.find(p => p.id === value);
+              setSelectedProject(project || null);
+              setFormData({ ...formData, projectId: value });
+            }}
+          >
             <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
-              <SelectValue placeholder="Select a client" />
+              <SelectValue placeholder="Select a project" />
             </SelectTrigger>
             <SelectContent className="bg-space1 text-spaceText">
-              {customers.map((customer) => (
-                <SelectItem key={customer.email} value={customer.email}>
-                  {customer.name}
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.projectType} - {project.clientName}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -135,14 +255,28 @@ export default function LetterAgreement() {
         {/* Quote Link */}
         <div className="space-y-2">
           <Label className="text-spaceText">Quote Reference</Label>
-          <Select onValueChange={(value) => setFormData({...formData, quoteId: value})}>
+          <Select 
+            onValueChange={(value) => {
+              const quote = quotes.find(q => q.id === value);
+              setFormData({
+                ...formData, 
+                quoteId: value,
+                selectedQuote: quote || null,
+                requirements: quote?.features?.join('\n') || ''
+              });
+            }}
+          >
             <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
               <SelectValue placeholder="Select associated quote" />
             </SelectTrigger>
             <SelectContent className="bg-space1 text-spaceText">
-              {/* TODO: Replace with actual quotes */}
-              <SelectItem value="Q001">Quote #Q001</SelectItem>
-              <SelectItem value="Q002">Quote #Q002</SelectItem>
+              {quotes
+                .filter(quote => quote.project_id === formData.projectId)
+                .map((quote) => (
+                  <SelectItem key={quote.id} value={quote.id}>
+                    Quote #{quote.id} - R{quote.total_amount.toLocaleString()}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -161,6 +295,7 @@ export default function LetterAgreement() {
         <Button 
           className="w-full bg-spaceAccent text-space1 hover:bg-spaceAlt"
           onClick={generateAgreement}
+          disabled={!selectedProject}
         >
           Generate Agreement
         </Button>
