@@ -124,6 +124,7 @@ export default function LetterAgreement() {
 
           <View style={styles.section}>
             <Text style={styles.text}>Project Requirements:</Text>
+            {/* @ts-ignore */}
             {formData.selectedQuote.features?.map((feature, index) => (
               <Text key={index} style={styles.text}>• {feature}</Text>
             ))}
@@ -262,6 +263,7 @@ export default function LetterAgreement() {
                 ...formData, 
                 quoteId: value,
                 selectedQuote: quote || null,
+                // @ts-ignore
                 requirements: quote?.features?.join('\n') || ''
               });
             }}

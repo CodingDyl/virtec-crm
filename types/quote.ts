@@ -9,4 +9,5 @@ export interface Quote {
     status: 'pending' | 'accepted' | 'rejected'; // Quote status
     pdf_url: string;             // URL to the PDF document
     id: string;                  // Add this line
+    features?: string[];          // Array of project features/requirements
 }
