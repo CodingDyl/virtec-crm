@@ -26,10 +26,13 @@ export default function ProjectsTable() {
     projectType: '',
     clientName: '',
     completion: 0,
-    status: ''
+    status: '',
+    agreementStatus: ''
   });
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const fetchProjects = async () => {
     setIsLoading(true);
@@ -51,7 +54,8 @@ export default function ProjectsTable() {
       projectType: project.projectType,
       clientName: project.clientName,
       completion: project.completion,
-      status: project.status
+      status: project.status,
+      agreementStatus: project.agreementStatus || 'pending'
     });
     setEditDialogOpen(true);
   };
@@ -68,7 +72,8 @@ export default function ProjectsTable() {
         clientName: editForm.clientName,
         completion: editForm.completion,
         status: status,
-        quoteId: editingProject.quoteId
+        quoteId: editingProject.quoteId,
+        agreementStatus: editForm.agreementStatus
       });
       
       await fetchProjects();
@@ -107,6 +112,15 @@ export default function ProjectsTable() {
     }
   };
 
+  const getAgreementStatusColor = (status: string | null) => {
+    switch (status) {
+      case 'approved': return 'success';
+      case 'declined': return 'destructive';
+      case 'pending': return 'warning';
+      default: return 'default';
+    };
+  };
+
   const handleUploadSignedAgreement = async (project: Project) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -138,6 +152,27 @@ export default function ProjectsTable() {
     input.click();
   };
 
+  const handleAgreementClick = (project: Project) => {
+    setSelectedProject(project);
+    setAgreementDialogOpen(true);
+  };
+
+  const handleDeleteAgreement = async (projectId: string) => {
+    try {
+      const projectRef = doc(db, "projects", projectId);
+      await updateDoc(projectRef, {
+        agreementUrl: null,
+        agreementStatus: null
+      });
+      await fetchProjects();
+      setAgreementDialogOpen(false);
+      toast.success("Agreement deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting agreement:", error);
+      toast.error("Failed to delete agreement");
+    }
+  };
+
   return (
     <>
       <Card className="bg-space2 border-spaceAccent">
@@ -162,6 +197,7 @@ export default function ProjectsTable() {
                   <TableHead className="text-spaceAlt">Quote</TableHead>
                   <TableHead className="text-spaceAlt">Completion</TableHead>
                   <TableHead className="text-spaceAlt">Agreement</TableHead>
+                  <TableHead className="text-spaceAlt">Agreement Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -202,36 +238,23 @@ export default function ProjectsTable() {
                       </div>
                     </TableCell>
                     <TableCell className="text-spaceText">
-                      {project.agreementUrl ? (
-                        <div className="space-x-2">
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(project.agreementUrl, '_blank');
-                            }}
-                            variant="default"
-                            className="bg-spaceAccent hover:bg-space1 text-spaceText"
-                            size="sm"
-                          >
-                            View Agreement
-                          </Button>
-                          {project.agreementStatus === 'pending' && (
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUploadSignedAgreement(project);
-                              }}
-                              variant="outline"
-                              className="border-spaceAccent text-spaceText"
-                              size="sm"
-                            >
-                              Upload Signed
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">No Agreement</span>
-                      )}
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAgreementClick(project);
+                        }}
+                        variant="default"
+                        className="bg-spaceAccent hover:bg-space1 text-spaceText"
+                        size="sm"
+                      >
+                        Manage Agreement
+                      </Button>
+                    </TableCell>
+                    <TableCell className="text-spaceText">
+                      {/* @ts-ignore */}
+                      <Badge variant={getAgreementStatusColor(project.agreementStatus)}>
+                        {project.agreementStatus || 'pending'}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -274,6 +297,18 @@ export default function ProjectsTable() {
                 className="bg-space1 border-spaceAccent text-spaceText"
               />
             </div>
+            <div>
+              <label className="text-spaceText">Agreement Status</label>
+              <select
+                value={editForm.agreementStatus}
+                onChange={(e) => setEditForm(prev => ({ ...prev, agreementStatus: e.target.value }))}
+                className="w-full bg-space1 border-spaceAccent text-spaceText rounded-md p-2"
+              >
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="declined">Declined</option>
+              </select>
+            </div>
             <Button 
               onClick={handleUpdateProject}
               className="bg-spaceAccent hover:bg-spaceAlt text-spaceText w-full"
@@ -301,6 +336,41 @@ export default function ProjectsTable() {
                 className="bg-spaceAccent hover:bg-spaceAlt text-spaceText w-full"
               >
                 Download Quote PDF
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={agreementDialogOpen} onOpenChange={setAgreementDialogOpen}>
+        <DialogContent className="bg-space2 border-spaceAccent">
+          <DialogHeader>
+            <DialogTitle className="text-spaceText">Agreement Options</DialogTitle>
+          </DialogHeader>
+          {selectedProject && (
+            <div className="space-y-4">
+              <Button
+                onClick={() => window.open(selectedProject.agreementUrl, '_blank')}
+                className="bg-spaceAccent hover:bg-spaceAlt text-spaceText w-full"
+              >
+                View Agreement
+              </Button>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUploadSignedAgreement(selectedProject);
+                }}
+                variant="outline"
+                className="border-spaceAccent bg-space1 text-spaceText w-full"
+              >
+                Update Agreement
+              </Button>
+              <Button
+                onClick={() => handleDeleteAgreement(selectedProject.id)}
+                variant="destructive"
+                className="w-full"
+              >
+                Delete Agreement
               </Button>
             </div>
           )}
