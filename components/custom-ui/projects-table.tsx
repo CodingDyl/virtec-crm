@@ -112,6 +112,15 @@ export default function ProjectsTable() {
     }
   };
 
+  const getStatusColorStatus = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-space1 hover:bg-spaceAlt text-spaceText';
+      case 'on-hold': return 'bg-[rgba(0,0,0,0.6)] hover:bg-[rgba(0,0,0,0.8)]';
+      case 'completed': return 'bg-spaceAccent hover:bg-green-600';
+      default: return 'bg-spaceAccent hover:bg-space1 text-spaceText';
+    }
+  };
+
   const getAgreementStatusColor = (status: string | undefined) => {
     switch (status) {
       case 'signed':
@@ -216,7 +225,7 @@ export default function ProjectsTable() {
                     <TableCell className="text-spaceText">{project.clientName}</TableCell>
                     <TableCell className="text-spaceText">
                       <Badge
-                        className={`text-white ${getStatusColor(project.status)}`}
+                        className={`text-white ${getStatusColorStatus(project.status)}`}
                       >
                         {project.status}
                       </Badge>
