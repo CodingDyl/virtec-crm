@@ -70,9 +70,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-spaceAccent hover:bg-spaceAlt">
-          <PlusCircle className="h-6 w-6" />
-        </Button>
+        <Button variant="default" className="bg-space2 text-spaceText border-spaceAccent border-2 hover:bg-spaceAlt">Add A New Project</Button>
       </DialogTrigger>
       <DialogContent className="bg-space2 text-spaceText border-spaceAccent">
         <DialogHeader>

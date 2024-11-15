@@ -282,6 +282,7 @@ export default function ProjectsTable() {
           )}
         </CardContent>
       </Card>
+      <AddProjectModal onProjectAdded={fetchProjects} />
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="bg-space2 border-spaceAccent">
@@ -395,8 +396,6 @@ export default function ProjectsTable() {
           )}
         </DialogContent>
       </Dialog>
-
-      <AddProjectModal onProjectAdded={fetchProjects} />
 
     </>
   );
