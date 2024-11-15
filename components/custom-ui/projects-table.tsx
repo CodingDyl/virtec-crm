@@ -116,7 +116,7 @@ export default function ProjectsTable() {
     switch (status) {
       case 'active': return 'bg-space1 hover:bg-spaceAlt text-spaceText';
       case 'on-hold': return 'bg-[rgba(0,0,0,0.6)] hover:bg-[rgba(0,0,0,0.8)]';
-      case 'completed': return 'bg-spaceAccent hover:bg-green-600';
+      case 'completed': return 'bg-transparent border border-spaceAccent hover:bg-green-600';
       default: return 'bg-spaceAccent hover:bg-space1 text-spaceText';
     }
   };
