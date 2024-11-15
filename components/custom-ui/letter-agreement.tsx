@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
+import { addDays, format } from "date-fns"
 import { customers } from '@/constants'
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, storage } from '@/firebase/firebaseConfig';
@@ -35,12 +35,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   section: {
-    margin: 10,
-    padding: 10,
+    margin: 5,
+    paddingHorizontal: 20,
+    paddingTop: 5,
+  },
+  subHeading: {
+    fontSize: 16,
+    marginBottom: 10,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
   text: {
     fontSize: 12,
     marginBottom: 10,
+  },
+  importantText: {
+    fontSize: 12,
+    marginBottom: 10,
+    marginTop: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    textDecoration: 'underline',
   },
   signatureSection: {
     marginTop: 50,
@@ -48,9 +63,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   signatureLine: {
-    width: '60%',
+    width: '30%',
     borderBottom: 1,
-    marginTop: 40,
   },
 });
 
@@ -117,9 +131,11 @@ export default function LetterAgreement() {
           </View>
 
           <View style={styles.section}>
+            <Text style={styles.subHeading}>=== Overview ===</Text>
             <Text style={styles.text}>
-              This letter confirms our agreement for web development services as detailed in Quote #{formData.quoteId}.
+              On the date of {format(formData.date, "MMMM dd, yyyy")}, Dylan Petzer and {selectedProject.clientName} agreed on starting this colaboration together.
             </Text>
+            <Text style={styles.text}>The collaboration will end on {format(addDays(formData.date, 30), "MMMM dd, yyyy")} and has the purpose of {selectedProject.projectType}.</Text>
           </View>
 
           <View style={styles.section}>
@@ -128,21 +144,31 @@ export default function LetterAgreement() {
             {formData.selectedQuote.features?.map((feature, index) => (
               <Text key={index} style={styles.text}>• {feature}</Text>
             ))}
-            <Text style={styles.text}>{formData.requirements}</Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.text}>Financial Details:</Text>
+            <Text style={styles.subHeading}>=== Guarantee ===</Text>
+            <Text style={styles.text}>
+              If the service we agreed upon doesn't meet your expectations and if you are not satisfied with the results coming in, you will get a full redund of my 
+              commission/payment and you will be able to interrupt the agreement whenever you want.
+            </Text>
+            <Text style={styles.text}>In general terms, we both hold the right to stop working at any time.</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.subHeading}>=== Financial Details ===</Text>
             <Text style={styles.text}>Total Amount: R{formData.selectedQuote.total_amount.toLocaleString()}</Text>
             <Text style={styles.text}>Payment Method: {formData.paymentMethod}</Text>
             <Text style={styles.text}>Payment Duration: {formData.paymentDuration}</Text>
+
+            <Text style={styles.importantText}>A deposit of 50% will be required before the project starts.</Text>
           </View>
 
           <View style={styles.signatureSection}>
-            <Text style={styles.text}>Client Signature:</Text>
-            <View style={styles.signatureLine} />
             <Text style={styles.text}>Date: _________________</Text>
+            <Text style={styles.text}>Client Signature: _________________</Text>
           </View>
+        
         </Page>
       </Document>
     );
@@ -231,9 +257,9 @@ export default function LetterAgreement() {
               <SelectValue placeholder="Select payment method" />
             </SelectTrigger>
             <SelectContent className="bg-space1 text-spaceText">
-              <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-              <SelectItem value="credit_card">Credit Card</SelectItem>
-              <SelectItem value="paypal">PayPal</SelectItem>
+              <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+              <SelectItem value="Credit Card">Credit Card</SelectItem>
+              <SelectItem value="PayPal">PayPal</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -246,9 +272,10 @@ export default function LetterAgreement() {
               <SelectValue placeholder="Select payment duration" />
             </SelectTrigger>
             <SelectContent className="bg-space1 text-spaceText">
-              <SelectItem value="one_time">One-time Payment</SelectItem>
-              <SelectItem value="monthly">Monthly Payments</SelectItem>
-              <SelectItem value="milestones">Project Milestones</SelectItem>
+              <SelectItem value="One Time Payment">One Time Payment</SelectItem>
+              <SelectItem value="Monthly Payments">Monthly Payments</SelectItem>
+              <SelectItem value="Project Milestones">Project Milestones</SelectItem>
+              <SelectItem value="Full Project Suits">Full Project Suits</SelectItem>
             </SelectContent>
           </Select>
         </div>
