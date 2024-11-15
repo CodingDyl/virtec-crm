@@ -6,6 +6,6 @@ export interface Project {
   completion: number;
   quoteId?: string;
   agreementUrl?: string;
-  agreementStatus: 'approved' | 'declined' | 'pending' | null;
+  agreementStatus?: 'pending' | 'approved' | 'declined' | 'signed';
   // ... other existing fields ...
 } 

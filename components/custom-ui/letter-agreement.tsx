@@ -21,7 +21,7 @@ import {
   StyleSheet, 
   pdf 
 } from '@react-pdf/renderer';
-import { toast } from 'react-toastify';
+import { toast } from "sonner"
 import { Quote } from '@/types/quote';
 
 // Add PDF styles
@@ -91,6 +91,7 @@ export default function LetterAgreement() {
     requirements: '',
     selectedQuote: null
   });
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -118,6 +119,8 @@ export default function LetterAgreement() {
 
   const generateAgreement = async () => {
     if (!selectedProject || !formData.selectedQuote) return;
+    
+    setIsGenerating(true);
 
     const agreementDoc = (
       <Document>
@@ -186,10 +189,12 @@ export default function LetterAgreement() {
         agreementStatus: 'pending'
       });
 
-      toast.success("Agreement generated successfully!");
+      toast.success("Agreement generated and uploaded successfully!");
     } catch (error) {
       console.error("Error generating agreement:", error);
-      toast.error("Failed to generate agreement");
+      toast.error("Failed to generate agreement. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -324,9 +329,9 @@ export default function LetterAgreement() {
         <Button 
           className="w-full bg-spaceAccent text-space1 hover:bg-spaceAlt"
           onClick={generateAgreement}
-          disabled={!selectedProject}
+          disabled={!selectedProject || isGenerating}
         >
-          Generate Agreement
+          {isGenerating ? "Generating Agreement..." : "Generate Agreement"}
         </Button>
       </CardContent>
     </Card>

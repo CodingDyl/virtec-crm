@@ -105,20 +105,25 @@ export default function ProjectsTable() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'default';
-      case 'completed': return 'secondary';
-      case 'on-hold': return 'outline';
-      default: return 'default';
+      case 'active': return 'bg-blue-500 hover:bg-blue-600';
+      case 'completed': return 'bg-green-500 hover:bg-green-600';
+      case 'on-hold': return 'bg-gray-500 hover:bg-gray-600';
+      default: return 'bg-blue-500 hover:bg-blue-600';
     }
   };
 
-  const getAgreementStatusColor = (status: string | null) => {
+  const getAgreementStatusColor = (status: string | undefined) => {
     switch (status) {
-      case 'approved': return 'success';
-      case 'declined': return 'destructive';
-      case 'pending': return 'warning';
-      default: return 'default';
-    };
+      case 'signed':
+      case 'approved':
+        return 'bg-green-500 hover:bg-green-600';
+      case 'declined':
+        return 'bg-red-500 hover:bg-red-600';
+      case 'pending':
+        return 'bg-yellow-500 hover:bg-yellow-600';
+      default:
+        return 'bg-yellow-500 hover:bg-yellow-600';
+    }
   };
 
   const handleUploadSignedAgreement = async (project: Project) => {
@@ -210,7 +215,9 @@ export default function ProjectsTable() {
                     <TableCell className="text-spaceText">{project.projectType}</TableCell>
                     <TableCell className="text-spaceText">{project.clientName}</TableCell>
                     <TableCell className="text-spaceText">
-                      <Badge variant={getStatusColor(project.status)}>
+                      <Badge
+                        className={`text-white ${getStatusColor(project.status)}`}
+                      >
                         {project.status}
                       </Badge>
                     </TableCell>
@@ -221,7 +228,6 @@ export default function ProjectsTable() {
                             e.stopPropagation();
                             fetchProjectWithQuote(project);
                           }}
-                          variant="default"
                           className="bg-spaceAccent hover:bg-space1 text-spaceText"
                           size="sm"
                         >
@@ -238,6 +244,7 @@ export default function ProjectsTable() {
                       </div>
                     </TableCell>
                     <TableCell className="text-spaceText">
+                      {project.agreementUrl ? (
                       <Button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -248,11 +255,14 @@ export default function ProjectsTable() {
                         size="sm"
                       >
                         Manage Agreement
-                      </Button>
+                      </Button>) : (
+                        <span className="text-gray-400">No Agreement Found</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-spaceText">
-                      {/* @ts-ignore */}
-                      <Badge variant={getAgreementStatusColor(project.agreementStatus)}>
+                      <Badge 
+                        className={`text-white ${getAgreementStatusColor(project.agreementStatus)}`}
+                      >
                         {project.agreementStatus || 'pending'}
                       </Badge>
                     </TableCell>
