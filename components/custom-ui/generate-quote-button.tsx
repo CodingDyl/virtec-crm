@@ -221,7 +221,7 @@ const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData }
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Virtec Development Quote</Text>
+          <Text style={styles.title}>ThreeSixty Development Quote</Text>
           <Text style={styles.subtitle}>
             Generated on {format(new Date(), 'MMMM dd, yyyy')}
           </Text>
@@ -297,7 +297,7 @@ const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData }
           <Text style={styles.sectionTitle}>Quote Calculation</Text>
           <View style={styles.row}>
             <Text style={styles.label}>Days to Completion:</Text>
-            <Text style={styles.value}>{Math.ceil(formData.estimatedHours / 5)}</Text>
+            <Text style={styles.value}>{Math.ceil((formData.estimatedHours / 5)) * 2 }</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Complexity Multiplier:</Text>

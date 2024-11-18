@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from "lucide-react"
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/firebase/firebaseConfig'
+import { toast } from 'sonner'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -19,12 +22,21 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate minimum loading time of 3 seconds
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    
-    // Add your authentication logic here
-    
-    router.push('/dashboard')
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+      toast.success('Successfully logged in!')
+      router.push('/dashboard')
+    } catch (error: any) {
+      setIsLoading(false)
+      if (error.code === 'auth/invalid-credential') {
+        toast.error('Invalid email or password')
+      } else if (error.code === 'auth/too-many-requests') {
+        toast.error('Too many failed attempts. Please try again later')
+      } else {
+        toast.error('An error occurred. Please try again')
+      }
+      console.error(error)
+    }
   }
 
   return (
@@ -46,8 +58,9 @@ export default function LoginPage() {
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-space1 text-spaceText border-spaceAccent focus:border-spaceAlt"
+                className="bg-space1 text-spaceText border-spaceAccent focus:border-spaceAlt disabled:opacity-50"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -57,8 +70,9 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-space1 text-spaceText border-spaceAccent focus:border-spaceAlt"
+                className="bg-space1 text-spaceText border-spaceAccent focus:border-spaceAlt disabled:opacity-50"
                 required
+                disabled={isLoading}
               />
             </div>
             <Button 
