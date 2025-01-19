@@ -20,7 +20,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   return (
     <div className="w-64 bg-space1 p-4 border-r-2 border-spaceAccent text-spaceText h-screen">
       <div className="flex flex-col h-full">
-        <h1 className="mb-8 text-2xl font-bold">Virtec Marketing</h1>
+        <h1 className="mb-8 text-2xl font-bold">Virtara</h1>
         <nav className="flex flex-col flex-1">
           <div className="space-y-2">
             <Button 

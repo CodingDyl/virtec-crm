@@ -22,6 +22,8 @@ interface QuoteFormData {
   hourlyRate: number
   hostingCost: number
   maintenanceCost: number
+  company: string
+  documentType: 'Quote' | 'Invoice'
 }
 
 const COMPLEXITY_MULTIPLIERS = {
@@ -47,7 +49,9 @@ export default function GenerateQuote() {
     estimatedHours: 0,
     hourlyRate: 300,
     hostingCost: 0,
-    maintenanceCost: 0
+    maintenanceCost: 0,
+    company: '',
+    documentType: 'Quote'
   })
 
   const [showHosting, setShowHosting] = useState(false)
@@ -90,7 +94,9 @@ export default function GenerateQuote() {
       estimatedHours: 0,
       hourlyRate: 300,
       hostingCost: 0,
-      maintenanceCost: 0
+      maintenanceCost: 0,
+      company: '',
+      documentType: 'Quote'
     })
     setShowHosting(false)
     setShowMaintenance(false)
@@ -105,6 +111,41 @@ export default function GenerateQuote() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Add Document Type Selection */}
+        <div className="space-y-2">
+          <Label className="text-spaceText">Document Type</Label>
+          <Select
+            defaultValue="Quote"
+            onValueChange={(value: 'Quote' | 'Invoice') => 
+              setFormData({...formData, documentType: value})}
+          >
+            <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
+              <SelectValue placeholder="Select document type" />
+            </SelectTrigger>
+            <SelectContent className="bg-space1 text-spaceText">
+              <SelectItem value="Quote">Quote</SelectItem>
+              <SelectItem value="Invoice">Invoice</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Company Selection */}
+        <div className="space-y-2">
+          <Label className="text-spaceText">Company</Label>
+          <Select
+            onValueChange={(value) => setFormData({...formData, company: value})}
+          >
+            <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
+              <SelectValue placeholder="Select a company" />
+            </SelectTrigger>
+            <SelectContent className="bg-space1 text-spaceText">
+              <SelectItem value="Virtara">Virtara</SelectItem>
+              <SelectItem value="Three Sixty Development">Three Sixty Development</SelectItem>
+              <SelectItem value="Dylan Petzer">Dylan Petzer</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Project Selection */}
         <div className="space-y-2">
           <Label className="text-spaceText">Project</Label>
@@ -251,11 +292,12 @@ export default function GenerateQuote() {
         </div>
 
         <GenerateQuoteButton 
-          // @ts-expect-error was not working
+        // @ts-expect-error was not working
           formData={formData} 
           calculateQuote={calculateQuote}
           projectId={formData.projectId}
           onSuccess={resetForm}
+          company={formData.company}
         />
       </CardContent>
     </Card>

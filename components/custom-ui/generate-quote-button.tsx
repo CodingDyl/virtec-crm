@@ -90,6 +90,7 @@ interface FormData {
   hourlyRate: number;
   hostingCost: number;
   maintenanceCost: number;
+  documentType: 'Quote' | 'Invoice';
 }
 
 // Add props interface
@@ -99,6 +100,7 @@ interface GenerateQuoteButtonProps {
   projectId: string;
   onSuccess?: () => void;
   selectedProject: Project | null;
+  company: string;
 }
 
 // Update component with correct types
@@ -107,6 +109,7 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
   calculateQuote, 
   projectId,
   onSuccess,
+  company,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   // @ts-ignore
@@ -143,7 +146,12 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
       const quoteRef = doc(collection(db, "quotes"));
       
       const pdfBlob = await pdf(
-        <QuotePDF formData={formData} totalAmount={calculateQuote()} clientData={clientData} />
+        <QuotePDF 
+          formData={formData} 
+          totalAmount={calculateQuote()} 
+          clientData={clientData}
+          company={company}
+        />
       ).toBlob();
       
       // Create a sanitized client name for the file name
@@ -212,16 +220,17 @@ interface QuotePDFProps {
   totalAmount: number;
   // @ts-ignore
   clientData: any;
+  company: string;
 }
 
 // PDF Document Component
-const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData }) => {
+const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, company }) => {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>ThreeSixty Development Quote</Text>
+          <Text style={styles.title}>{company} {formData.documentType}</Text>
           <Text style={styles.subtitle}>
             Generated on {format(new Date(), 'MMMM dd, yyyy')}
           </Text>
@@ -325,7 +334,10 @@ const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData }
 
         {/* Footer */}
         <Text style={styles.footer}>
-          This quote is valid for 30 days from the date of generation.
+          {formData.documentType === 'Quote' 
+            ? 'This quote is valid for 30 days from the date of generation.'
+            : 'This invoice is due within 30 days from the date of generation.'
+          }
           All prices are in South African Rand (ZAR).
         </Text>
       </Page>
