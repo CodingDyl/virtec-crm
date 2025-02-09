@@ -15,9 +15,10 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Virtec CRM",
-  description: "Virtec CRM",
+  title: "Virtara | Management System",
+  description: "Virtara | Management System",
 };
+
 
 export default function RootLayout({
   children,

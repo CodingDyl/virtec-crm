@@ -17,6 +17,7 @@ const config: Config = {
 			spaceAlt: '#676f9d',
 			spaceText: '#ffffff',
 			spaceAccent: '#f9b17a',
+			bg_color: '#100d28',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'

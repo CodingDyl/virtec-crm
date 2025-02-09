@@ -24,6 +24,8 @@ interface QuoteFormData {
   maintenanceCost: number
   company: string
   documentType: 'Quote' | 'Invoice'
+  discountType: 'none' | 'percentage' | 'hourly' | 'hours'
+  discountValue: number
 }
 
 const COMPLEXITY_MULTIPLIERS = {
@@ -51,7 +53,9 @@ export default function GenerateQuote() {
     hostingCost: 0,
     maintenanceCost: 0,
     company: '',
-    documentType: 'Quote'
+    documentType: 'Quote',
+    discountType: 'none',
+    discountValue: 0
   })
 
   const [showHosting, setShowHosting] = useState(false)
@@ -79,9 +83,24 @@ export default function GenerateQuote() {
     const complexityMultiplier = COMPLEXITY_MULTIPLIERS[formData.complexity]
     const urgencyMultiplier = URGENCY_MULTIPLIERS[formData.urgency]
     
-    return (baseQuote * complexityMultiplier * urgencyMultiplier) + 
-           formData.hostingCost + 
-           formData.maintenanceCost
+    let finalQuote = baseQuote * complexityMultiplier * urgencyMultiplier
+
+    // Apply discount based on type
+    switch (formData.discountType) {
+      case 'percentage':
+        finalQuote *= (1 - formData.discountValue / 100)
+        break
+      case 'hourly':
+        finalQuote = (formData.estimatedHours * (formData.hourlyRate - formData.discountValue)) 
+          * complexityMultiplier * urgencyMultiplier
+        break
+      case 'hours':
+        finalQuote = ((formData.estimatedHours - formData.discountValue) * formData.hourlyRate) 
+          * complexityMultiplier * urgencyMultiplier
+        break
+    }
+    
+    return finalQuote + formData.hostingCost + formData.maintenanceCost
   }
 
   const resetForm = () => {
@@ -96,10 +115,37 @@ export default function GenerateQuote() {
       hostingCost: 0,
       maintenanceCost: 0,
       company: '',
-      documentType: 'Quote'
+      documentType: 'Quote',
+      discountType: 'none',
+      discountValue: 0
     })
     setShowHosting(false)
     setShowMaintenance(false)
+  }
+
+  const renderDiscountInput = () => {
+    if (formData.discountType === 'none') return null
+
+    const label = formData.discountType === 'percentage' ? 'Discount Percentage' 
+      : formData.discountType === 'hourly' ? 'Hourly Rate Reduction'
+      : 'Hours Reduction'
+
+    const placeholder = formData.discountType === 'percentage' ? 'Enter percentage (e.g. 10)' 
+      : formData.discountType === 'hourly' ? 'Enter rate reduction'
+      : 'Enter hours reduction'
+
+    return (
+      <div className="space-y-2">
+        <Label className="text-spaceText">{label}</Label>
+        <Input 
+          type="number"
+          className="bg-space1 text-spaceText border-spaceAccent"
+          placeholder={placeholder}
+          value={formData.discountValue}
+          onChange={(e) => setFormData({...formData, discountValue: Number(e.target.value)})}
+        />
+      </div>
+    )
   }
 
   return (
@@ -282,6 +328,28 @@ export default function GenerateQuote() {
             />
           </div>
         )}
+
+        {/* Discount Section */}
+        <div className="space-y-2">
+          <Label className="text-spaceText">Discount Type</Label>
+          <Select
+            defaultValue="none"
+            onValueChange={(value: 'none' | 'percentage' | 'hourly' | 'hours') => 
+              setFormData({...formData, discountType: value, discountValue: 0})}
+          >
+            <SelectTrigger className="bg-space1 text-spaceText border-spaceAccent">
+              <SelectValue placeholder="Select discount type" />
+            </SelectTrigger>
+            <SelectContent className="bg-space1 text-spaceText">
+              <SelectItem value="none">No Discount</SelectItem>
+              <SelectItem value="percentage">Percentage Discount</SelectItem>
+              <SelectItem value="hourly">Hourly Rate Discount</SelectItem>
+              <SelectItem value="hours">Hours Discount</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {renderDiscountInput()}
 
         {/* Quote Preview */}
         <div className="mt-6 p-4 bg-space1 rounded-lg">

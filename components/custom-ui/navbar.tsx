@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, BarChart3, LogOut, FileText, Calculator } from "lucide-react";
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import icon from '@/app/icon.png';
 
 interface NavbarProps {
   activeTab: string;
@@ -18,9 +20,12 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   };
 
   return (
-    <div className="w-64 bg-space1 p-4 border-r-2 border-spaceAccent text-spaceText h-screen">
+    <div className="w-64 bg-bg_color p-4 border-r-2 border-spaceAccent text-spaceText h-screen">
       <div className="flex flex-col h-full">
-        <h1 className="mb-8 text-2xl font-bold">Virtara</h1>
+        <div className="flex items-center gap-2 mb-8">
+          <Image src={icon} alt="Virtara Icon" width={32} height={32} />
+          <h1 className="text-2xl font-bold">Virtara | Management</h1>
+        </div>
         <nav className="flex flex-col flex-1">
           <div className="space-y-2">
             <Button 

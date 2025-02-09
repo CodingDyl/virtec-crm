@@ -91,6 +91,8 @@ interface FormData {
   hostingCost: number;
   maintenanceCost: number;
   documentType: 'Quote' | 'Invoice';
+  discountType: 'none' | 'percentage' | 'hourly' | 'hours';
+  discountValue: number;
 }
 
 // Add props interface
@@ -225,6 +227,19 @@ interface QuotePDFProps {
 
 // PDF Document Component
 const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, company }) => {
+  // Calculate the original amount before discount
+  const calculateOriginalAmount = () => {
+    const baseQuote = formData.estimatedHours * formData.hourlyRate;
+    const complexityMultiplier = COMPLEXITY_MULTIPLIERS[formData.complexity];
+    const urgencyMultiplier = URGENCY_MULTIPLIERS[formData.urgency];
+    
+    const originalQuote = baseQuote * complexityMultiplier * urgencyMultiplier;
+    return originalQuote + formData.hostingCost + formData.maintenanceCost;
+  };
+
+  const originalAmount = calculateOriginalAmount();
+  const savings = originalAmount - totalAmount;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -322,10 +337,48 @@ const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, 
           </View>
         </View>
 
+        {/* Discount Information */}
+        {formData.discountType !== 'none' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Applied Discount</Text>
+            <View style={styles.row}>
+              <Text style={styles.label}>Discount Type:</Text>
+              <Text style={styles.value}>
+                {formData.discountType === 'percentage' ? 'Percentage Discount'
+                  : formData.discountType === 'hourly' ? 'Hourly Rate Discount'
+                  : 'Hours Discount'}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Discount Value:</Text>
+              <Text style={styles.value}>
+                {formData.discountType === 'percentage' ? `${formData.discountValue}%`
+                  : formData.discountType === 'hourly' ? `R${formData.discountValue} per hour`
+                  : `${formData.discountValue} hours`}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Show original amount and savings if there's a discount */}
+        {formData.discountType !== 'none' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Price Breakdown</Text>
+            <View style={styles.row}>
+              <Text style={styles.label}>Original Amount:</Text>
+              <Text style={styles.value}>R{originalAmount.toLocaleString()}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Savings:</Text>
+              <Text style={styles.value}>R{savings.toLocaleString()}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Total */}
         <View style={styles.total}>
           <View style={styles.row}>
-            <Text style={styles.totalText}>Total Amount:</Text>
+            <Text style={styles.totalText}>Final Amount:</Text>
             <Text style={styles.totalText}>
               R{totalAmount.toLocaleString()}
             </Text>
