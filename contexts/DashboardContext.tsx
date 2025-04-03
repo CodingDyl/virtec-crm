@@ -104,7 +104,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           id: doc.id,
           ...doc.data()
         } as Customer))
-        .sort((a, b) => b.created_at.toDate().getTime() - a.created_at.toDate().getTime())
+        .filter(customer => customer.created_at && customer.created_at.toDate) // Filter out invalid entries
+        .sort((a, b) => {
+          try {
+            return b.created_at.toDate().getTime() - a.created_at.toDate().getTime();
+          } catch (error) {
+            console.warn(`Error sorting customer dates for IDs ${a.id} and ${b.id}:`, error);
+            return 0; // Keep relative order unchanged in case of error
+          }
+        })
         .slice(0, 5);
 
       // Generate Revenue Data
