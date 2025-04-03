@@ -13,43 +13,22 @@ import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ref, deleteObject } from 'firebase/storage';
 import { storage } from '@/firebase/firebaseConfig';
+import { useQuotes } from '@/contexts/DataContexts';
 
 export default function Quotes() {
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [editingQuote, setEditingQuote] = useState<(Quote & { id: string }) | null>(null);
+  const { quotes, isLoading, projectNames, lastUpdated, refreshData } = useQuotes();
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [projectNames, setProjectNames] = useState<{[key: string]: string}>({});
 
-  const fetchQuotes = async () => {
-    setIsLoading(true);
-    try {
-      const querySnapshot = await getDocs(collection(db, "quotes"));
-      const quotesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Quote[];
-      setQuotes(quotesData);
-      
-      // Fetch project names for all quotes
-      const projectNamesMap: {[key: string]: string} = {};
-      for (const quote of quotesData) {
-        if (quote.project_id) {
-          const projectDoc = await getDoc(doc(db, "projects", quote.project_id));
-          if (projectDoc.exists()) {
-            projectNamesMap[quote.project_id] = projectDoc.data().clientName;
-          }
-        }
-      }
-      setProjectNames(projectNamesMap);
-    } finally {
-      setIsLoading(false);
-    }
+  const getLastUpdatedText = () => {
+    if (!lastUpdated) return 'Never';
+    const now = new Date();
+    const diff = now.getTime() - lastUpdated.getTime();
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} minutes ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} hours ago`;
+    return lastUpdated.toLocaleDateString();
   };
-
-  useEffect(() => {
-    fetchQuotes();
-  }, []);
 
   const handleDeleteQuote = async (quoteId: string, pdfUrl: string) => {
     try {
@@ -62,7 +41,7 @@ export default function Quotes() {
       // Delete the quote document
       await deleteDoc(doc(db, "quotes", quoteId));
 
-      await fetchQuotes();
+      await refreshData();
     } catch (error) {
       console.error("Error deleting quote or PDF:", error);
     }
@@ -76,7 +55,7 @@ export default function Quotes() {
       await updateDoc(quoteRef, {
         status: editingQuote.status
       });
-      await fetchQuotes();
+      await refreshData();
       setEditDialogOpen(false);
     } catch (error) {
       console.error("Error updating quote:", error);
@@ -95,10 +74,20 @@ export default function Quotes() {
   return (
     <Card className="bg-space2 border-spaceAccent">
       <CardHeader>
-        <CardTitle className="text-spaceText">Quotes Overview</CardTitle>
-        <CardDescription className="text-spaceAccent">
-          Manage all quotes and their statuses
-        </CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle className="text-spaceText">Quotes Overview</CardTitle>
+            <CardDescription className="text-spaceAccent">
+              Last updated: {getLastUpdatedText()}
+            </CardDescription>
+          </div>
+          <Button 
+            onClick={refreshData}
+            className="bg-spaceAccent hover:bg-spaceAlt text-spaceText"
+          >
+            Refresh Data
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (

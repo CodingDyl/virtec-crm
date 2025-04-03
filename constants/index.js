@@ -43,4 +43,6 @@ const projects = [
     { name: 'Shared Hosting', description: 'Your website will be hosted on a shared server.' },
   ];
 
-export { projects, customers, revenueData, features };
+  const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+export { projects, customers, revenueData, features, REFRESH_INTERVAL };

@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from 'sonner'
+import { DashboardProvider } from "@/contexts/DashboardContext";
+import { 
+  QuotesProvider, 
+  ProjectsProvider, 
+  CustomersProvider, 
+  SubscriptionsProvider 
+} from "@/contexts/DataContexts";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -19,7 +26,6 @@ export const metadata: Metadata = {
   description: "Virtara | Management System",
 };
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,7 +36,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <DashboardProvider>
+          <QuotesProvider>
+            <ProjectsProvider>
+              <CustomersProvider>
+                <SubscriptionsProvider>
+                  {children}
+                </SubscriptionsProvider>
+              </CustomersProvider>
+            </ProjectsProvider>
+          </QuotesProvider>
+        </DashboardProvider>
         <Toaster position="top-center" richColors />
       </body>
     </html>

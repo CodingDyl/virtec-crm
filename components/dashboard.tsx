@@ -23,6 +23,9 @@ const GenerateQuote = dynamic(() => import('./custom-ui/generate-quote'), {
 const Quotes = dynamic(() => import('./custom-ui/quotes'), {
   loading: () => <div>Loading...</div>
 })
+const Subscriptions = dynamic(() => import('./custom-ui/subcriptions'), {
+  loading: () => <div>Loading...</div>
+})
 const LetterAgreement = dynamic(() => import('./custom-ui/letter-agreement'), {
   loading: () => <div>Loading...</div>
 })
@@ -41,6 +44,7 @@ export function Dashboard() {
               <TabsTrigger value="customers" onClick={() => setActiveTab('customers')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Customers</TabsTrigger>
               <TabsTrigger value="projects" onClick={() => setActiveTab('projects')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Projects</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Quotes</TabsTrigger>
+              <TabsTrigger value="subscriptions" onClick={() => setActiveTab('subscriptions')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Subscriptions</TabsTrigger>
               {/* <TabsTrigger value="generate-quote" onClick={() => setActiveTab('generate-quote')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Generate Quote</TabsTrigger>
               <TabsTrigger value="letter-agreement" onClick={() => setActiveTab('letter-agreement')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Letter Agreement</TabsTrigger> */}
             </TabsList>
@@ -61,6 +65,9 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="quotes" className="space-y-4">
               <Quotes />
+            </TabsContent>
+            <TabsContent value="subscriptions" className="space-y-4">
+              <Subscriptions />
             </TabsContent>
           </Tabs>
         </div>
