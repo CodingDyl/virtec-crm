@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
+import { Timestamp } from 'firebase/firestore';
 
 interface DashboardData {
   totalRevenue: number;
@@ -12,6 +13,12 @@ interface DashboardData {
   revenueData: any[];
   recentCustomers: any[];
   lastUpdated: Date | null;
+}
+
+interface Customer {
+  id: string;
+  created_at: Timestamp;
+  // add other customer fields as needed
 }
 
 interface DashboardContextType {
@@ -96,8 +103,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         .map(doc => ({
           id: doc.id,
           ...doc.data()
-        }))
-        .sort((a, b) => b.createdAt - a.createdAt)
+        } as Customer))
+        .sort((a, b) => b.created_at - a.created_at)
         .slice(0, 5);
 
       // Generate Revenue Data
