@@ -104,7 +104,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           id: doc.id,
           ...doc.data()
         } as Customer))
-        .sort((a, b) => b.created_at - a.created_at)
+        .sort((a, b) => b.created_at.toDate().getTime() - a.created_at.toDate().getTime())
         .slice(0, 5);
 
       // Generate Revenue Data

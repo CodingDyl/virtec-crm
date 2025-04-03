@@ -183,7 +183,7 @@ export function CustomersProvider({ children }: { children: React.ReactNode }) {
         };
       }));
       
-      setCustomers(customersData);
+      setCustomers(customersData as Customer[]);
       setLastUpdated(new Date());
     } finally {
       if (isInitialLoad) setIsLoading(false);
