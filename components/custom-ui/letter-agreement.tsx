@@ -136,7 +136,7 @@ export default function LetterAgreement() {
           <View style={styles.section}>
             <Text style={styles.subHeading}>=== Overview ===</Text>
             <Text style={styles.text}>
-              On the date of {format(formData.date, "MMMM dd, yyyy")}, Dylan Petzer and {selectedProject.clientName} agreed on starting this colaboration together.
+              On the date of {format(formData.date, "MMMM dd, yyyy")}, Virtara and {selectedProject.clientName} agreed on starting this colaboration together.
             </Text>
             <Text style={styles.text}>The collaboration will end on {format(addDays(formData.date, 30), "MMMM dd, yyyy")} and has the purpose of {selectedProject.projectType}.</Text>
           </View>
@@ -152,11 +152,22 @@ export default function LetterAgreement() {
           <View style={styles.section}>
             <Text style={styles.subHeading}>=== Guarantee ===</Text>
             <Text style={styles.text}>
-              If the service we agreed upon doesn't meet your expectations and if you are not satisfied with the results coming in, you will get a full redund of my 
-              commission/payment and you will be able to interrupt the agreement whenever you want.
+              If the service we agreed upon doesn't meet the above requirements, you will get a full refund of my 
+              commission/payment.
             </Text>
-            <Text style={styles.text}>In general terms, we both hold the right to stop working at any time.</Text>
           </View>
+
+          <View style={styles.section}>
+            <Text style={styles.subHeading}>=== Additional Information ===</Text>
+            <Text style={styles.text}>
+              While working with Virtara, you will be able to make two changes to the project. Once I have reached a design and created the first draft, you will be able to request a change.
+              Once I have reached the second draft, you will be able to request a final change. Any additional changes will be charged at an additional fee.
+            </Text>
+            <Text style={styles.text}>
+              Please note that I reserve the right to refuse any changes that I believe may impact the quality of the project. Please also note that the maintenance of the project will only be charged once the website is live.
+            </Text>
+          </View>
+
 
           <View style={styles.section}>
             <Text style={styles.subHeading}>=== Financial Details ===</Text>

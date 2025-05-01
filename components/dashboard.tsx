@@ -34,7 +34,7 @@ export function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview')
 
   return (
-    <div className="flex h-screen bg-bg_color text-spaceText">
+    <div className="flex max-h-screen bg-bg_color text-spaceText">
       <Suspense fallback={<div>Loading...</div>}>
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
         <div className="flex-1 overflow-auto p-8">
