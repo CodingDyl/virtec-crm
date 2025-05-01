@@ -164,7 +164,17 @@ export default function LetterAgreement() {
               Once I have reached the second draft, you will be able to request a final change. Any additional changes will be charged at an additional fee.
             </Text>
             <Text style={styles.text}>
-              Please note that I reserve the right to refuse any changes that I believe may impact the quality of the project. Please also note that the maintenance of the project will only be charged once the website is live.
+              Please note that I reserve the right to refuse any changes that I believe may impact the quality of the project. Please also note that the maintenance of the project will only be charged once the website is live (Should you have opted for a maintenance plan).
+            </Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.subHeading}>=== Hosting Details ===</Text>
+            <Text style={styles.text}>
+              The hosting will be done on a monthly basis. The cost of the hosting will be R500 per month.
+            </Text>
+            <Text style={styles.text}>
+              This will ensure reliable, secure and high-performance infrastructure to keep your site accessible 24/7. This translates to tangible benefits for your business: a fast-loading website enhances user experience, boosts SEO rankings, and increases customer trust.
             </Text>
           </View>
 
