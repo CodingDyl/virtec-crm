@@ -62,6 +62,14 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
+              className={`w-full justify-start ${activeTab === 'maintenance-table' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              onClick={() => setActiveTab('maintenance-table')}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Maintenance Table
+            </Button>
+            <Button 
+              variant="ghost" 
               className={`w-full justify-start ${activeTab === 'subscriptions' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
               onClick={() => setActiveTab('subscriptions')}
             >
@@ -85,6 +93,15 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
               <FileText className="mr-2 h-4 w-4" />
               Letter Agreement
             </Button>
+            <Button 
+              variant="ghost" 
+              className={`w-full justify-start ${activeTab === 'maintenance-invoice' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              onClick={() => setActiveTab('maintenance-invoice')}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Maintenance Invoice
+            </Button>
+            
           </div>
           
           <div className="mt-auto">

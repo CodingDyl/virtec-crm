@@ -29,6 +29,12 @@ const Subscriptions = dynamic(() => import('./custom-ui/subcriptions'), {
 const LetterAgreement = dynamic(() => import('./custom-ui/letter-agreement'), {
   loading: () => <div>Loading...</div>
 })
+const MaintenanceInvoice = dynamic(() => import('./custom-ui/maintenance-invoice'), {
+  loading: () => <div>Loading...</div>
+})
+const MaintenanceTable = dynamic(() => import('./custom-ui/maintenance-table'), {
+  loading: () => <div>Loading...</div>
+})
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview')
@@ -44,7 +50,9 @@ export function Dashboard() {
               <TabsTrigger value="customers" onClick={() => setActiveTab('customers')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Customers</TabsTrigger>
               <TabsTrigger value="projects" onClick={() => setActiveTab('projects')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Projects</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Quotes</TabsTrigger>
+              <TabsTrigger value="maintenance-table" onClick={() => setActiveTab('maintenance-table')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Maintenance Table</TabsTrigger>
               <TabsTrigger value="subscriptions" onClick={() => setActiveTab('subscriptions')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Subscriptions</TabsTrigger>
+              
               {/* <TabsTrigger value="generate-quote" onClick={() => setActiveTab('generate-quote')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Generate Quote</TabsTrigger>
               <TabsTrigger value="letter-agreement" onClick={() => setActiveTab('letter-agreement')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Letter Agreement</TabsTrigger> */}
             </TabsList>
@@ -68,6 +76,12 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="subscriptions" className="space-y-4">
               <Subscriptions />
+            </TabsContent>
+            <TabsContent value="maintenance-table" className="space-y-4">
+              <MaintenanceTable />
+            </TabsContent>
+            <TabsContent value="maintenance-invoice" className="space-y-4">
+              <MaintenanceInvoice />
             </TabsContent>
           </Tabs>
         </div>
