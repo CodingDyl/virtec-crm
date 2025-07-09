@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ref, deleteObject } from 'firebase/storage';
 import { storage } from '@/firebase/firebaseConfig';
 import { useQuotes } from '@/contexts/DataContexts';
+import { Quantum } from 'ldrs/react';
 
 export default function Quotes() {
   const { quotes, isLoading, projectNames, lastUpdated, refreshData } = useQuotes();
@@ -91,9 +92,14 @@ export default function Quotes() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex justify-center items-center h-48">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-spaceText"></div>
-          </div>
+          <div className="min-h-[500px] w-full flex flex-col items-center justify-center p-8 gap-4">
+          <Quantum
+            size="100"
+            speed="1.75"
+            color="white" 
+          />
+          <p className="text-spaceText">Fetching quotes...</p>
+        </div>
         ) : (
           <Table>
             <TableHeader>

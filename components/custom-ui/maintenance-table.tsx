@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { format } from 'date-fns'
 import { toast } from "sonner"
+import { Quantum } from 'ldrs/react'
+import 'ldrs/react/Quantum.css'
 
 interface MaintenanceItem {
   title: string;
@@ -148,7 +150,12 @@ export default function MaintenanceTable() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="min-h-screen w-full flex flex-col items-center justify-center p-8 gap-4">
+        <Quantum
+          size="100"
+          speed="1.75"
+          color="white" 
+        />
         <p className="text-spaceText">Loading maintenance invoices...</p>
       </div>
     );

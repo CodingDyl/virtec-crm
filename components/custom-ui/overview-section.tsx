@@ -5,6 +5,8 @@ import { DollarSign, BarChart3, Users, ArrowUpRight } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { Quantum } from 'ldrs/react'
+import 'ldrs/react/Quantum.css'
 
 export default function OverviewSection() {
   const { dashboardData, isLoading, lastUpdated } = useDashboard();
@@ -23,9 +25,14 @@ export default function OverviewSection() {
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-48">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-spaceText"></div>
-    </div>;
+    return <div className="min-h-screen w-full flex flex-col items-center justify-center p-8 gap-4">
+    <Quantum
+      size="100"
+      speed="1.75"
+      color="white" 
+    />
+    <p className="text-spaceText">Loading dashboard data...</p>
+  </div>
   }
 
   return (

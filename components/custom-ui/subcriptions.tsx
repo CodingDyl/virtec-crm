@@ -8,6 +8,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
+import { Quantum } from 'ldrs/react';
+import 'ldrs/react/Quantum.css';
 
 interface Subscriber {
   id: string;
@@ -64,8 +66,13 @@ export default function Subscriptions() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex justify-center items-center h-48">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-spaceText"></div>
+          <div className="min-h-[500px] w-full flex flex-col items-center justify-center p-8 gap-4">
+            <Quantum
+              size="100"
+              speed="1.75"
+              color="white" 
+            />
+            <p className="text-spaceText">Fetching subscribers...</p>
           </div>
         ) : (
           <Table>

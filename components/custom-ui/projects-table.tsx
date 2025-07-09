@@ -16,6 +16,8 @@ import { Quote } from '@/types/quote';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/firebase/firebaseConfig';
 import { toast } from 'react-toastify';
+import { Quantum } from 'ldrs/react';
+import 'ldrs/react/Quantum.css';
 
 export default function ProjectsTable() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -198,8 +200,13 @@ export default function ProjectsTable() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center items-center h-48">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-spaceText"></div>
+            <div className="min-h-[500px] w-full flex flex-col items-center justify-center p-8 gap-4">
+              <Quantum
+                size="100"
+                speed="1.75"
+                color="white" 
+              />
+              <p className="text-spaceText">Fetching projects...</p>
             </div>
           ) : (
             <Table>

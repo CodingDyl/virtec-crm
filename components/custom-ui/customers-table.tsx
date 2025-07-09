@@ -11,6 +11,8 @@ import { AddCustomerModal } from "./add-customer-modal"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Quantum } from 'ldrs/react';
+import 'ldrs/react/Quantum.css';
 
 export default function CustomersTable() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -110,8 +112,13 @@ export default function CustomersTable() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center items-center h-48">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-spaceText"></div>
+            <div className="min-h-[500px] w-full flex flex-col items-center justify-center p-8 gap-4">
+              <Quantum
+                size="100"
+                speed="1.75"
+                color="white" 
+              />
+              <p className="text-spaceText">Fetching customers...</p>
             </div>
           ) : (
             <Table>

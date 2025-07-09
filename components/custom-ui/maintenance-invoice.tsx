@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { format } from 'date-fns'
 import { 
   Document, 
@@ -19,6 +18,7 @@ import {
 } from '@react-pdf/renderer'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { toast } from "sonner"
+import { Quantum } from 'ldrs/react'
 
 // Define styles for PDF
 const styles = StyleSheet.create({
@@ -139,7 +139,7 @@ export default function MaintenanceInvoice() {
     status: 'pending'
   });
   const [isGenerating, setIsGenerating] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
     const fetchProjects = async () => {
       const querySnapshot = await getDocs(collection(db, "projects"));
@@ -148,6 +148,7 @@ export default function MaintenanceInvoice() {
         ...doc.data()
       })) as Project[];
       setProjects(projectsData);
+      setIsLoading(false);
     };
     fetchProjects();
   }, []);
@@ -326,6 +327,19 @@ export default function MaintenanceInvoice() {
       setIsGenerating(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[500px] w-full flex flex-col items-center justify-center p-8 gap-4">
+        <Quantum
+          size="100"
+          speed="1.75"
+          color="white" 
+        />
+        <p className="text-spaceText">Fetching projects...</p>
+      </div>
+    )
+  }
 
   return (
     <Card className="bg-space2 border-spaceAccent">
