@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Customer } from '@/types/customer';
 
@@ -22,20 +22,23 @@ interface AddCustomerModalProps {
 
 export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps) {
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<Omit<Customer, 'id'>>({
+  const [formData, setFormData] = useState({
     name: '',
     email: '',
     companyName: '',
     contactNumber: '',
-    totalSpent: 0,
     maintenance: false,
-    status: true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, "customers"), formData);
+      await addDoc(collection(db, "customers"), {
+        ...formData,
+        totalSpent: 0,
+        status: true,
+        created_at: serverTimestamp(),
+      });
       setOpen(false);
       onCustomerAdded();
       setFormData({
@@ -43,9 +46,7 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps) {
         email: '',
         companyName: '',
         contactNumber: '',
-        totalSpent: 0,
         maintenance: false,
-        status: true,
       });
     } catch (error) {
       console.error("Error adding customer: ", error);
@@ -99,16 +100,6 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps) {
               className="bg-space1 text-spaceText"
             />
           </div>
-          <div>
-            <Label htmlFor="totalSpent" className="text-spaceText">Total Spent</Label>
-            <Input
-              id="totalSpent"
-              type="number"
-              value={formData.totalSpent}
-              onChange={(e) => setFormData({...formData, totalSpent: Number(e.target.value)})}
-              className="bg-space1 text-spaceText"
-            />
-          </div>
           <div className="flex items-center space-x-2">
             <Checkbox
               id="maintenance"
@@ -116,14 +107,6 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps) {
               onCheckedChange={(checked) => setFormData({...formData, maintenance: checked as boolean})}
             />
             <Label htmlFor="maintenance" className="text-spaceText">Maintenance</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="status"
-              checked={formData.status}
-              onCheckedChange={(checked) => setFormData({...formData, status: checked as boolean})}
-            />
-            <Label htmlFor="status" className="text-spaceText">Active Status</Label>
           </div>
           <Button type="submit" className="w-full">Add Customer</Button>
         </form>

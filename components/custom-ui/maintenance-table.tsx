@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
 import {
   Table,
@@ -35,12 +35,14 @@ interface MaintenanceInvoice {
 interface Client {
   name: string;
   companyName: string;
+  email: string;
 }
 
 export default function MaintenanceTable() {
   const [invoices, setInvoices] = useState<MaintenanceInvoice[]>([]);
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingInvoice, setUpdatingInvoice] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -106,6 +108,44 @@ export default function MaintenanceTable() {
     return items.reduce((sum, item) => sum + item.hours, 0);
   };
 
+  const handleMarkAsPaid = async (invoiceId: string) => {
+    setUpdatingInvoice(invoiceId);
+    try {
+      const invoiceRef = doc(db, "maintenance_invoices", invoiceId);
+      await updateDoc(invoiceRef, {
+        status: 'paid'
+      });
+      
+      // Update the local state to reflect the change
+      setInvoices(prevInvoices => 
+        prevInvoices.map(invoice => 
+          invoice.id === invoiceId 
+            ? { ...invoice, status: 'paid' }
+            : invoice
+        )
+      );
+      
+      toast.success("Invoice marked as paid successfully!");
+    } catch (error) {
+      console.error("Error marking invoice as paid:", error);
+      toast.error("Failed to mark invoice as paid. Please try again.");
+    } finally {
+      setUpdatingInvoice(null);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    try {
+      const invoiceRef = doc(db, "maintenance_invoices", invoiceId);
+      await deleteDoc(invoiceRef);
+      setInvoices(prevInvoices => prevInvoices.filter(invoice => invoice.id !== invoiceId));
+      toast.success("Invoice deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+      toast.error("Failed to delete invoice. Please try again.");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -121,6 +161,7 @@ export default function MaintenanceTable() {
           <TableRow className="bg-space2">
             <TableHead className="text-spaceText">Date</TableHead>
             <TableHead className="text-spaceText">Client</TableHead>
+            <TableHead className="text-spaceText">Email</TableHead>
             <TableHead className="text-spaceText">Items</TableHead>
             <TableHead className="text-spaceText">Hours</TableHead>
             <TableHead className="text-spaceText">Amount</TableHead>
@@ -145,6 +186,9 @@ export default function MaintenanceTable() {
                   {clients[invoice.clientId]?.name || 'Unknown Client'}
                 </TableCell>
                 <TableCell className="text-spaceText">
+                  {clients[invoice.clientId]?.email || 'Unknown Email'}
+                </TableCell>
+                <TableCell className="text-spaceText">
                   {invoice.items.length} items
                 </TableCell>
                 <TableCell className="text-spaceText">
@@ -159,7 +203,7 @@ export default function MaintenanceTable() {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-4">
                     <Button
                       variant="outline"
                       size="sm"
@@ -171,13 +215,23 @@ export default function MaintenanceTable() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="bg-spaceAccent text-space1 hover:bg-spaceAlt"
-                      onClick={() => {
-                        // TODO: Implement mark as paid functionality
-                        toast.info("Mark as paid functionality coming soon");
-                      }}
+                      className={invoice.status === 'paid' 
+                        ? "bg-green-600 text-white hover:bg-green-700" 
+                        : "bg-spaceAccent text-space1 hover:bg-spaceAlt"}
+                      onClick={() => handleMarkAsPaid(invoice.id)}
+                      disabled={invoice.status === 'paid' || updatingInvoice === invoice.id}
                     >
-                      Mark as Paid
+                      {updatingInvoice === invoice.id ? "Updating..." : 
+                       invoice.status === 'paid' ? "Paid" : "Mark as Paid"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={invoice.status === 'paid' ? "hidden" : "bg-red-600 text-white hover:bg-red-700"}
+                      onClick={() => handleDeleteInvoice(invoice.id)}
+                      disabled={invoice.status === 'paid'}
+                    >
+                      {invoice.status === 'paid' ? "" : "Delete Invoice"}
                     </Button>
                   </div>
                 </TableCell>

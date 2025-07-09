@@ -46,20 +46,26 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const generateMonthlyRevenueData = async () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
     
+    // Fetch accepted quotes
     const quotesSnapshot = await getDocs(
-      query(collection(db, "quotes"), 
-      where("status", "==", "accepted"))
+      query(collection(db, "quotes"), where("status", "==", "accepted"))
+    );
+    
+    // Fetch paid maintenance invoices
+    const maintenanceSnapshot = await getDocs(
+      query(collection(db, "maintenance_invoices"), where("status", "==", "paid"))
     );
 
     return months.map((month, index) => ({
       name: month,
-      total: quotesSnapshot.docs
+      total: [...quotesSnapshot.docs, ...maintenanceSnapshot.docs]
         .filter(doc => {
-          const quoteDate = doc.data().created_at.toDate();
-          return quoteDate.getMonth() === ((currentMonth - (5 - index)) % 12);
+          const docData = doc.data();
+          const docDate = docData.created_at?.toDate() || docData.date?.toDate();
+          return docDate && docDate.getMonth() === ((currentMonth - (5 - index)) % 12);
         })
         .reduce((sum, doc) => sum + (doc.data().total_amount || 0), 0)
     }));
@@ -78,8 +84,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         query(collection(db, "quotes"), 
         where("status", "==", "accepted"))
       );
-      const totalRev = quotesSnapshot.docs.reduce((sum, doc) => 
+      let totalRev = quotesSnapshot.docs.reduce((sum, doc) => 
         sum + (doc.data().total_amount || 0), 0
+      );
+
+      // Fetch Maintenance Invoices for Revenue
+      const maintenanceSnapshot = await getDocs(
+        query(collection(db, "maintenance_invoices"), 
+        where("status", "==", "paid"))
+      );
+      totalRev += maintenanceSnapshot.docs.reduce((sum, doc) => 
+        sum + (doc.data().totalAmount || 0), 0
       );
 
       // Fetch Active Projects

@@ -7,4 +7,5 @@ export interface Customer {
   totalSpent: number;
   maintenance: boolean;
   status: boolean;
+  created_at?: any; // Firestore Timestamp
 } 
