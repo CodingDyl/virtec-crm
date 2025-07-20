@@ -29,106 +29,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For production, you would integrate with a real email service here
-    // Here are some popular options:
-
-    // Option 1: SendGrid
-    /*
-    const sgMail = require('@sendgrid/mail');
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    
-    const msg = {
-      to: toEmail,
-      cc: ccEmail,
-      from: process.env.FROM_EMAIL || 'noreply@yourdomain.com',
-      subject: subject,
-      text: message,
-      html: message.replace(/\n/g, '<br>'),
-      attachments: [
-        {
-          content: await fetch(pdfUrl).then(res => res.arrayBuffer()).then(buffer => Buffer.from(buffer).toString('base64')),
-          filename: `maintenance-invoice-${invoiceId}.pdf`,
-          type: 'application/pdf',
-          disposition: 'attachment'
-        }
-      ]
-    };
-    
-    await sgMail.send(msg);
-    */
-
-    // Option 2: Resend
-    /*
+    // Use Resend for email sending
     const { Resend } = require('resend');
+    
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY environment variable is not set');
+    }
+    
     const resend = new Resend(process.env.RESEND_API_KEY);
     
-    const { data, error } = await resend.emails.send({
-      from: 'Virtara <noreply@yourdomain.com>',
+    // Fetch the PDF from the URL and convert to buffer
+    console.log('Fetching PDF from URL:', pdfUrl);
+    const pdfResponse = await fetch(pdfUrl);
+    if (!pdfResponse.ok) {
+      console.error('PDF fetch failed:', pdfResponse.status, pdfResponse.statusText);
+      throw new Error(`Failed to fetch PDF from URL: ${pdfResponse.status} ${pdfResponse.statusText}`);
+    }
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    console.log('PDF fetched successfully, size:', pdfBuffer.byteLength);
+    
+    // Use a verified domain or the default Resend domain
+    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+    
+    const emailData = {
+      from: fromEmail,
       to: [toEmail],
       cc: ccEmail ? [ccEmail] : undefined,
       subject: subject,
       html: message.replace(/\n/g, '<br>'),
+      text: message, // Plain text fallback
       attachments: [
         {
           filename: `maintenance-invoice-${invoiceId}.pdf`,
-          content: await fetch(pdfUrl).then(res => res.arrayBuffer())
+          content: Buffer.from(pdfBuffer)
         }
       ]
-    });
+    };
     
-    if (error) {
-      throw new Error(error.message);
-    }
-    */
-
-    // Option 3: Nodemailer with SMTP
-    /*
-    const nodemailer = require('nodemailer');
-    
-    const transporter = nodemailer.createTransporter({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      secure: true,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-    
-    const pdfBuffer = await fetch(pdfUrl).then(res => res.arrayBuffer());
-    
-    await transporter.sendMail({
-      from: process.env.FROM_EMAIL,
+    console.log('Sending email via Resend:', {
+      from: fromEmail,
       to: toEmail,
       cc: ccEmail,
       subject: subject,
-      text: message,
-      html: message.replace(/\n/g, '<br>'),
-      attachments: [
-        {
-          filename: `maintenance-invoice-${invoiceId}.pdf`,
-          content: Buffer.from(pdfBuffer),
-          contentType: 'application/pdf'
-        }
-      ]
-    });
-    */
-
-    // For now, we'll simulate a successful email send
-    // In production, uncomment one of the above email service implementations
-    
-    console.log('Email would be sent with data:', {
-      to: toEmail,
-      cc: ccEmail,
-      subject: subject,
-      message: message,
       invoiceId: invoiceId,
-      pdfUrl: pdfUrl,
-      clientName: clientName
+      pdfSize: pdfBuffer.byteLength
     });
-
-    // Simulate email sending delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    try {
+      const { data, error } = await resend.emails.send(emailData);
+      
+      if (error) {
+        console.error('Resend error:', error);
+        throw new Error(`Email sending failed: ${error.message}`);
+      }
+      
+      console.log('Email sent successfully via Resend:', data);
+    } catch (resendError) {
+      console.error('Resend API error:', resendError);
+      throw new Error(`Resend API error: ${resendError instanceof Error ? resendError.message : 'Unknown error'}`);
+    }
     
     return NextResponse.json(
       { 
