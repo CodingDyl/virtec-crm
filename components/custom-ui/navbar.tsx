@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, BarChart3, LogOut, FileText, Calculator, Mail } from "lucide-react";
+import { LayoutDashboard, Users, BarChart3, LogOut, FileText, Calculator, Mail, Lock } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import icon from '@/app/icon.png';
@@ -75,6 +75,14 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             >
               <Mail className="mr-2 h-4 w-4" />
               Subscriptions
+            </Button>
+            <Button 
+              variant="ghost" 
+              className={`w-full justify-start ${activeTab === 'passwords' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              onClick={() => setActiveTab('passwords')}
+            >
+              <Lock className="mr-2 h-4 w-4" />
+              Passwords
             </Button>
             <div className="h-px bg-spaceAccent my-2" />
             <Button 

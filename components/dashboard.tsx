@@ -35,6 +35,9 @@ const MaintenanceInvoice = dynamic(() => import('./custom-ui/maintenance-invoice
 const MaintenanceTable = dynamic(() => import('./custom-ui/maintenance-table'), {
   loading: () => <div>Loading...</div>
 })
+const PasswordsPage = dynamic(() => import('../app/passwords/page'), {
+  loading: () => <div>Loading...</div>
+})
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview')
@@ -52,6 +55,7 @@ export function Dashboard() {
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Quotes</TabsTrigger>
               <TabsTrigger value="maintenance-table" onClick={() => setActiveTab('maintenance-table')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Maintenance Table</TabsTrigger>
               <TabsTrigger value="subscriptions" onClick={() => setActiveTab('subscriptions')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Subscriptions</TabsTrigger>
+              <TabsTrigger value="passwords" onClick={() => setActiveTab('passwords')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Passwords</TabsTrigger>
               
               {/* <TabsTrigger value="generate-quote" onClick={() => setActiveTab('generate-quote')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Generate Quote</TabsTrigger>
               <TabsTrigger value="letter-agreement" onClick={() => setActiveTab('letter-agreement')} className='hover:bg-spaceAlt active:bg-spaceAccent'>Letter Agreement</TabsTrigger> */}
@@ -82,6 +86,9 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="maintenance-invoice" className="space-y-4">
               <MaintenanceInvoice />
+            </TabsContent>
+            <TabsContent value="passwords" className="space-y-4">
+              <PasswordsPage />
             </TabsContent>
           </Tabs>
         </div>

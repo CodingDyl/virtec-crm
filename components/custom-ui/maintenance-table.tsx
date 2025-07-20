@@ -10,6 +10,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { format } from 'date-fns'
 import { toast } from "sonner"
 import { Quantum } from 'ldrs/react'
@@ -45,6 +54,15 @@ export default function MaintenanceTable() {
   const [clients, setClients] = useState<Record<string, Client>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [updatingInvoice, setUpdatingInvoice] = useState<string | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<MaintenanceInvoice | null>(null);
+  const [emailForm, setEmailForm] = useState({
+    toEmail: '',
+    ccEmail: '',
+    subject: '',
+    message: ''
+  });
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -83,6 +101,8 @@ export default function MaintenanceTable() {
   const setStatus = (status: string) => {
     if (status === 'paid') {
       return 'Paid';
+    } else if (status === 'emailed') {
+      return 'Emailed';
     } else if (status === 'overdue') {
       return 'Overdue';
     } else {
@@ -94,6 +114,8 @@ export default function MaintenanceTable() {
     switch (status) {
       case 'paid':
         return 'text-green-500';
+      case 'emailed':
+        return 'text-blue-500';
       case 'overdue':
         return 'text-red-500';
       default:
@@ -112,7 +134,7 @@ export default function MaintenanceTable() {
 
   const calculateOutstandingAmount = () => {
     return invoices
-      .filter(invoice => invoice.status === 'pending')
+      .filter(invoice => invoice.status === 'pending' || invoice.status === 'emailed')
       .reduce((sum, invoice) => sum + invoice.totalAmount, 0);
   };
 
@@ -126,6 +148,10 @@ export default function MaintenanceTable() {
 
   const calculatePendingInvoices = () => {
     return invoices.filter(invoice => invoice.status === 'pending').length;
+  };
+
+  const calculateEmailedInvoices = () => {
+    return invoices.filter(invoice => invoice.status === 'emailed').length;
   };
 
   const handleMarkAsPaid = async (invoiceId: string) => {
@@ -166,6 +192,104 @@ export default function MaintenanceTable() {
     }
   };
 
+  const handleSendEmail = async (invoiceId: string) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return;
+    
+    const client = clients[invoice.clientId];
+    if (!client) return;
+    
+    setSelectedInvoice(invoice);
+    
+    // Different message for re-sending vs first time
+    const isResending = invoice.status === 'emailed';
+    const message = isResending 
+      ? `Dear ${client.name},\n\nPlease find attached the maintenance invoice for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nIf you have already received this invoice, please disregard this duplicate.\n\nThank you for your business.\n\nBest regards,\nVirtara Team`
+      : `Dear ${client.name},\n\nPlease find attached the maintenance invoice for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nThank you for your business.\n\nBest regards,\nVirtara Team`;
+    
+    setEmailForm({
+      toEmail: client.email,
+      ccEmail: '',
+      subject: `Maintenance Invoice - ${format(invoice.date.toDate(), 'MMM dd, yyyy')}`,
+      message: message
+    });
+    setEmailModalOpen(true);
+  };
+
+  const handleSubmitEmail = async () => {
+    if (!selectedInvoice) return;
+    
+    // Validate required fields
+    if (!emailForm.toEmail.trim()) {
+      toast.error("Recipient email is required");
+      return;
+    }
+    
+    if (!emailForm.subject.trim()) {
+      toast.error("Subject is required");
+      return;
+    }
+    
+    if (!emailForm.message.trim()) {
+      toast.error("Message is required");
+      return;
+    }
+    
+    setSendingEmail(true);
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          toEmail: emailForm.toEmail.trim(),
+          ccEmail: emailForm.ccEmail.trim(),
+          subject: emailForm.subject.trim(),
+          message: emailForm.message.trim(),
+          invoiceId: selectedInvoice.id,
+          pdfUrl: selectedInvoice.pdfUrl,
+          clientName: clients[selectedInvoice.clientId]?.name || 'Unknown Client'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send email');
+      }
+
+      // Update invoice status to emailed
+      const invoiceRef = doc(db, "maintenance_invoices", selectedInvoice.id);
+      await updateDoc(invoiceRef, {
+        status: 'emailed'
+      });
+      
+      // Update local state
+      setInvoices(prevInvoices => 
+        prevInvoices.map(invoice => 
+          invoice.id === selectedInvoice.id 
+            ? { ...invoice, status: 'emailed' }
+            : invoice
+        )
+      );
+      
+      setEmailModalOpen(false);
+      setSelectedInvoice(null);
+      setEmailForm({
+        toEmail: '',
+        ccEmail: '',
+        subject: '',
+        message: ''
+      });
+      
+      toast.success("Email sent successfully!");
+    } catch (error) {
+      console.error("Error sending email:", error);
+      toast.error("Failed to send email. Please try again.");
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center p-8 gap-4">
@@ -184,7 +308,7 @@ export default function MaintenanceTable() {
       {/* Overview Section */}
       <div className="rounded-lg border border-spaceAccent bg-space2 p-6">
         <h3 className="text-lg font-semibold text-spaceText mb-4">Maintenance Invoices Overview</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-space1 rounded-lg p-4 border border-spaceAccent">
             <div className="flex items-center justify-between">
               <div>
@@ -222,6 +346,20 @@ export default function MaintenanceTable() {
               <div className="w-10 h-10 bg-yellow-500/10 rounded-full flex items-center justify-center">
                 <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-space1 rounded-lg p-4 border border-spaceAccent">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-spaceText/70 font-medium">Emailed Invoices</p>
+                <p className="text-2xl font-bold text-blue-500">{calculateEmailedInvoices()}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
             </div>
@@ -334,6 +472,19 @@ export default function MaintenanceTable() {
                       >
                         {invoice.status === 'paid' ? "" : "Delete Invoice"}
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={invoice.status === 'paid' ? "hidden" : 
+                                 invoice.status === 'emailed' ? "bg-blue-600 text-white hover:bg-blue-700" : 
+                                 "bg-spaceAccent text-space1 hover:bg-spaceAlt"}
+                        onClick={() => handleSendEmail(invoice.id)}
+                        disabled={invoice.status === 'paid' || sendingEmail}
+                      >
+                        {invoice.status === 'paid' ? "" : 
+                         invoice.status === 'emailed' ? "Re-send Email" :
+                         sendingEmail && selectedInvoice?.id === invoice.id ? "Sending..." : "Email Invoice"}
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -342,6 +493,84 @@ export default function MaintenanceTable() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={emailModalOpen} onOpenChange={setEmailModalOpen}>
+        <DialogContent className="bg-space2 border-spaceAccent">
+          <DialogHeader>
+            <DialogTitle className="text-spaceText">
+              {selectedInvoice?.status === 'emailed' ? 'Re-send Maintenance Invoice' : 'Send Maintenance Invoice'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="toEmail" className="text-spaceText">
+                To Email:
+              </Label>
+              <Input
+                id="toEmail"
+                type="email"
+                value={emailForm.toEmail}
+                onChange={(e) => setEmailForm({ ...emailForm, toEmail: e.target.value })}
+                className="bg-space1 text-spaceText border-spaceAccent"
+                placeholder="recipient@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ccEmail" className="text-spaceText">
+                CC Email (Optional):
+              </Label>
+              <Input
+                id="ccEmail"
+                type="email"
+                value={emailForm.ccEmail}
+                onChange={(e) => setEmailForm({ ...emailForm, ccEmail: e.target.value })}
+                className="bg-space1 text-spaceText border-spaceAccent"
+                placeholder="cc@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="subject" className="text-spaceText">
+                Subject:
+              </Label>
+              <Input
+                id="subject"
+                value={emailForm.subject}
+                onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+                className="bg-space1 text-spaceText border-spaceAccent"
+                placeholder="Invoice subject"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="message" className="text-spaceText">
+                Message:
+              </Label>
+              <Textarea
+                id="message"
+                value={emailForm.message}
+                onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+                className="bg-space1 text-spaceText border-spaceAccent min-h-[120px]"
+                placeholder="Enter your message here..."
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setEmailModalOpen(false)}
+              className="bg-space1 text-spaceText border-spaceAccent hover:bg-spaceAlt"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitEmail} 
+              disabled={sendingEmail}
+              className="bg-spaceAccent text-space1 hover:bg-spaceAlt"
+            >
+              {sendingEmail ? "Sending..." : "Send Email"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
