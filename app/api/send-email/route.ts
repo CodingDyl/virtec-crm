@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     console.log('PDF fetched successfully, size:', pdfBuffer.byteLength);
     
     // Use a verified domain or the default Resend domain
-    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+    const fromEmail = process.env.FROM_EMAIL || '2610dylan@gmail.com';
     
     const emailData = {
       from: fromEmail,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       text: message, // Plain text fallback
       attachments: [
         {
-          filename: `maintenance-invoice-${invoiceId}.pdf`,
+          filename: `${clientName}-invoice-${invoiceId}.pdf`,
           content: Buffer.from(pdfBuffer)
         }
       ]

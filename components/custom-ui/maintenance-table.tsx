@@ -210,7 +210,7 @@ export default function MaintenanceTable() {
     setEmailForm({
       toEmail: client.email,
       ccEmail: '',
-      subject: `Maintenance Invoice - ${format(invoice.date.toDate(), 'MMM dd, yyyy')}`,
+      subject: `Invoice - ${format(invoice.date.toDate(), 'MMM dd, yyyy')}`,
       message: message
     });
     setEmailModalOpen(true);
