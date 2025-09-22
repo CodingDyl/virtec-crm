@@ -199,7 +199,8 @@ export default function LetterAgreement() {
 
     try {
       const pdfBlob = await pdf(agreementDoc).toBlob();
-      const storageRef = ref(storage, `letter_of_agreements/${selectedProject.clientName}_${selectedProject.projectType}_agreement.pdf`);
+      // Use project ID to ensure uniqueness - no overwrites
+      const storageRef = ref(storage, `letter_of_agreements/${selectedProject.id}_agreement.pdf`);
       await uploadBytes(storageRef, pdfBlob);
       const pdfUrl = await getDownloadURL(storageRef);
 

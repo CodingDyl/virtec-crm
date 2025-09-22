@@ -300,13 +300,17 @@ export default function MaintenanceInvoice() {
         </Document>
       );
 
+      // Create unique invoice reference first
+      const invoiceRef = doc(collection(db, "maintenance_invoices"));
+      
       const pdfBlob = await pdf(invoiceDoc).toBlob();
-      const storageRef = ref(storage, `maintenance_invoices/${projectData.clientId}_${format(formData.date, 'yyyy-MM-dd')}_invoice.pdf`);
+      // Use invoice ID to ensure uniqueness - no overwrites
+      const timestamp = format(formData.date, 'yyyy-MM-dd_HH-mm-ss');
+      const storageRef = ref(storage, `maintenance_invoices/${invoiceRef.id}_${timestamp}_invoice.pdf`);
       await uploadBytes(storageRef, pdfBlob);
       const pdfUrl = await getDownloadURL(storageRef);
 
       // Save invoice data to Firestore with updated structure
-      const invoiceRef = doc(collection(db, "maintenance_invoices"));
       await setDoc(invoiceRef, {
         projectId: selectedProject.id,
         clientId: projectData.clientId,
