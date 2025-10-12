@@ -40,7 +40,7 @@ const URGENCY_MULTIPLIERS = {
   'Extreme Rush': 1.4
 }
 
-export default function GenerateQuote() {
+function GenerateQuote() {
   const [projects, setProjects] = useState<Project[]>([])
   const [formData, setFormData] = useState<QuoteFormData>({
     projectId: '',
@@ -83,7 +83,16 @@ export default function GenerateQuote() {
     const complexityMultiplier = COMPLEXITY_MULTIPLIERS[formData.complexity]
     const urgencyMultiplier = URGENCY_MULTIPLIERS[formData.urgency]
     
-    let finalQuote = baseQuote * complexityMultiplier * urgencyMultiplier
+    // Calculate feature-based multipliers
+    let featureMultiplier = 1
+    const selectedFeatures = features.filter(f => formData.features.includes(f.name))
+    selectedFeatures.forEach(feature => {
+      if (feature.multiplier) {
+        featureMultiplier *= feature.multiplier
+      }
+    })
+    
+    let finalQuote = baseQuote * complexityMultiplier * urgencyMultiplier * featureMultiplier
 
     // Apply discount based on type
     switch (formData.discountType) {
@@ -92,11 +101,11 @@ export default function GenerateQuote() {
         break
       case 'hourly':
         finalQuote = (formData.estimatedHours * (formData.hourlyRate - formData.discountValue)) 
-          * complexityMultiplier * urgencyMultiplier
+          * complexityMultiplier * urgencyMultiplier * featureMultiplier
         break
       case 'hours':
         finalQuote = ((formData.estimatedHours - formData.discountValue) * formData.hourlyRate) 
-          * complexityMultiplier * urgencyMultiplier
+          * complexityMultiplier * urgencyMultiplier * featureMultiplier
         break
     }
     
@@ -281,9 +290,9 @@ export default function GenerateQuote() {
         {/* Features Selection */}
         <div className="space-y-2">
           <Label className="text-spaceText">Features Required</Label>
-          <div className="grid grid-cols-2 gap-4 p-4 bg-space1 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-space1 rounded-lg">
             {features.map((feature) => (
-              <div key={feature.name} className="flex items-center space-x-2">
+              <div key={feature.name} className="flex items-start space-x-2">
                 <Checkbox
                   checked={formData.features.includes(feature.name)}
                   onCheckedChange={(checked) => {
@@ -297,7 +306,21 @@ export default function GenerateQuote() {
                     setShowMaintenance(newFeatures.includes('Maintenance'))
                   }}
                 />
-                <Label className="text-spaceText">{feature.name}</Label>
+                <div className="flex-1">
+                  <Label className="text-spaceText cursor-pointer">
+                    {feature.name}
+                    {feature.multiplier && (
+                      <span className="ml-2 text-spaceAccent text-sm">
+                        (+{Math.round((feature.multiplier - 1) * 100)}% complexity)
+                      </span>
+                    )}
+                  </Label>
+                  {feature.description && (
+                    <p className="text-xs text-spaceAlt mt-1 leading-relaxed">
+                      {feature.description}
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -371,3 +394,5 @@ export default function GenerateQuote() {
     </Card>
   )
 }
+
+export default GenerateQuote

@@ -248,6 +248,7 @@ export default function OverviewSection() {
   };
 
   if (isLoading) {
+    console.log("Overview section is loading...");
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center p-8 gap-4">
         <Quantum size="100" speed="1.75" color="white" />
@@ -255,6 +256,8 @@ export default function OverviewSection() {
       </div>
     );
   }
+
+  console.log("Overview section loaded with data:", dashboardData);
 
   return (
     <div className="space-y-6">

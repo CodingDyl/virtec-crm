@@ -79,6 +79,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      console.log("Starting dashboard data fetch...");
       // Fetch Quotes for Revenue
       const quotesSnapshot = await getDocs(
         query(collection(db, "quotes"), 
@@ -133,6 +134,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       // Generate Revenue Data
       const monthlyRevenue = await generateMonthlyRevenueData();
 
+      console.log("Dashboard data fetched successfully:", {
+        totalRevenue: totalRev,
+        activeProjects: projectsSnapshot.size,
+        totalCustomers: customersSnapshot.size,
+        conversionRate: Number(convRate.toFixed(1))
+      });
+
       setDashboardData({
         totalRevenue: totalRev,
         activeProjects: projectsSnapshot.size,
@@ -145,6 +153,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+      // Set some default data to prevent infinite loading
+      setDashboardData({
+        totalRevenue: 0,
+        activeProjects: 0,
+        totalCustomers: 0,
+        conversionRate: 0,
+        revenueData: [],
+        recentCustomers: [],
+        lastUpdated: new Date()
+      });
     } finally {
       if (isInitialLoad) {
         setIsLoading(false);

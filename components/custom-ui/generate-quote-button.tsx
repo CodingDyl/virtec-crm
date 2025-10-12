@@ -55,7 +55,8 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 12,
     color: '#666666',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    lineHeight: 1.4
   },
   total: {
     marginTop: 20,
@@ -75,6 +76,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#666666',
     textAlign: 'center',
+  },
+  featureItem: {
+    marginTop: 5,
+    marginLeft: 10,
+  },
+  featureDescription: {
+    fontSize: 10,
+    color: '#666666',
+    marginLeft: 10,
+    marginTop: 2,
+    lineHeight: 1.3,
   },
 });
 
@@ -227,13 +239,25 @@ interface QuotePDFProps {
 
 // PDF Document Component
 const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, company }) => {
+  // Import features to get multipliers
+  const { features } = require('@/constants');
+  
   // Calculate the original amount before discount
   const calculateOriginalAmount = () => {
     const baseQuote = formData.estimatedHours * formData.hourlyRate;
     const complexityMultiplier = COMPLEXITY_MULTIPLIERS[formData.complexity];
     const urgencyMultiplier = URGENCY_MULTIPLIERS[formData.urgency];
     
-    const originalQuote = baseQuote * complexityMultiplier * urgencyMultiplier;
+    // Calculate feature-based multipliers
+    let featureMultiplier = 1;
+    const selectedFeatures = features.filter((f: any) => formData.features.includes(f.name));
+    selectedFeatures.forEach((feature: any) => {
+      if (feature.multiplier) {
+        featureMultiplier *= feature.multiplier;
+      }
+    });
+    
+    const originalQuote = baseQuote * complexityMultiplier * urgencyMultiplier * featureMultiplier;
     return originalQuote + formData.hostingCost + formData.maintenanceCost;
   };
 
@@ -291,9 +315,28 @@ const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, 
             <Text style={styles.label}>Urgency:</Text>
             <Text style={styles.value}>{formData.urgency}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Features:</Text>
-            <Text style={styles.value}>{formData.features.join(", ")}</Text>
+          <View style={styles.section}>
+            <Text style={styles.label}>Features Required:</Text>
+            {formData.features.map((featureName, index) => {
+              const feature = features.find((f: any) => f.name === featureName);
+              return (
+                <View key={index} style={styles.featureItem}>
+                  <Text style={styles.value}>
+                    • {featureName}
+                    {feature?.multiplier && (
+                      <Text style={{ color: '#f9b17a', fontSize: 10 }}>
+                        {' '}(+{Math.round((feature.multiplier - 1) * 100)}% complexity)
+                      </Text>
+                    )}
+                  </Text>
+                  {feature?.description && (
+                    <Text style={styles.featureDescription}>
+                      {feature.description}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -316,23 +359,28 @@ const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, 
           </View>
         )}
 
-        {/* Calculation Details */}
+        {/* Project Timeline */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quote Calculation</Text>
+          <Text style={styles.sectionTitle}>Project Timeline</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Days to Completion:</Text>
-            <Text style={styles.value}>{Math.ceil((formData.estimatedHours / 5)) * 2 }</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Complexity Multiplier:</Text>
+            <Text style={styles.label}>Estimated Completion:</Text>
             <Text style={styles.value}>
-              {COMPLEXITY_MULTIPLIERS[formData.complexity]}x
+              {formData.estimatedHours < 20 
+                ? "2-5 weeks (estimate)" 
+                : "5-10 weeks (estimate)"
+              }
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Urgency Multiplier:</Text>
+            <Text style={styles.label}>Complexity Level:</Text>
             <Text style={styles.value}>
-              {URGENCY_MULTIPLIERS[formData.urgency]}x
+              {formData.complexity} ({COMPLEXITY_MULTIPLIERS[formData.complexity]}x multiplier)
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Urgency Level:</Text>
+            <Text style={styles.value}>
+              {formData.urgency} ({URGENCY_MULTIPLIERS[formData.urgency]}x multiplier)
             </Text>
           </View>
         </View>

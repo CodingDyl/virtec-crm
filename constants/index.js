@@ -41,6 +41,11 @@ const projects = [
     { name: 'Dedicated Hosting', description: 'Your website will be hosted on a dedicated server.' },
     { name: 'Cloud Hosting', description: 'Your website will be hosted on the cloud.' },
     { name: 'Shared Hosting', description: 'Your website will be hosted on a shared server.' },
+    { name: 'Payment Gateways', description: 'Integration with payment processing systems like Stripe, PayPal, or Square.', category: 'complex', multiplier: 1.5 },
+    { name: 'Booking System', description: 'Online appointment scheduling and booking functionality.', category: 'standard', multiplier: 1.0 },
+    { name: 'E-Commerce', description: 'Full online store with product catalog, shopping cart, and checkout process.', category: 'complex', multiplier: 1.8 },
+    { name: 'Backend Development', description: 'Custom server-side logic, APIs, and database design.', category: 'complex', multiplier: 1.6 },
+    { name: 'Backend Integration', description: 'Integration with existing backend systems and third-party APIs.', category: 'complex', multiplier: 1.4 },
   ];
 
   const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
