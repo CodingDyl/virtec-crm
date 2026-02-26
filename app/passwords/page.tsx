@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore'
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, orderBy, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -131,14 +131,14 @@ export default function PasswordsPage() {
     try {
       const passwordData = {
         ...passwordForm,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
       if (editingPassword) {
         await updateDoc(doc(db, "passwords", editingPassword.id), {
           ...passwordData,
-          updatedAt: new Date()
+          updatedAt: serverTimestamp()
         });
         toast.success("Password updated successfully!");
       } else {
@@ -176,14 +176,14 @@ export default function PasswordsPage() {
         title: recoveryForm.title,
         codes: codesArray,
         notes: recoveryForm.notes,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
       if (editingRecovery) {
         await updateDoc(doc(db, "recovery_codes", editingRecovery.id), {
           ...recoveryData,
-          updatedAt: new Date()
+          updatedAt: serverTimestamp()
         });
         toast.success("Recovery codes updated successfully!");
       } else {

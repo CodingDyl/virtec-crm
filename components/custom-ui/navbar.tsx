@@ -20,17 +20,22 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   };
 
   return (
-    <div className="w-64 bg-bg_color p-4 border-r-2 border-spaceAccent text-spaceText h-screen">
-      <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 mb-8">
-          <Image src={icon} alt="Virtara Icon" width={32} height={32} />
-          <h1 className="text-2xl font-bold">Virtara | Management</h1>
+    <aside className="hidden h-screen w-72 shrink-0 border-r border-spaceAccent/20 bg-space2/35 p-5 text-spaceText md:block">
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="mb-8 rounded-2xl border border-spaceAccent/25 bg-space1/80 p-3">
+          <div className="flex items-center gap-3">
+            <Image src={icon} alt="Virtara Icon" width={34} height={34} />
+            <div>
+              <h1 className="virtara-display text-lg font-bold leading-tight">Virtara</h1>
+              <p className="text-xs text-spaceAlt/80">Management System</p>
+            </div>
+          </div>
         </div>
-        <nav className="flex flex-col flex-1">
-          <div className="space-y-2">
+        <nav className="flex min-h-0 flex-1 flex-col">
+          <div className="space-y-2 overflow-y-auto pr-1">
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'overview' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'overview' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('overview')}
             >
               <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -38,7 +43,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'customers' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'customers' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('customers')}
             >
               <Users className="mr-2 h-4 w-4" />
@@ -46,7 +51,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'projects' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'projects' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('projects')}
             >
               <BarChart3 className="mr-2 h-4 w-4" />
@@ -54,7 +59,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'quotes' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'quotes' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('quotes')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -62,7 +67,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'maintenance-table' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'maintenance-table' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('maintenance-table')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -70,7 +75,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'subscriptions' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'subscriptions' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('subscriptions')}
             >
               <Mail className="mr-2 h-4 w-4" />
@@ -78,16 +83,16 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'passwords' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'passwords' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('passwords')}
             >
               <Lock className="mr-2 h-4 w-4" />
               Passwords
             </Button>
-            <div className="h-px bg-spaceAccent my-2" />
+            <div className="my-2 h-px bg-spaceAccent/30" />
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'generate-quote' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'generate-quote' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('generate-quote')}
             >
               <Calculator className="mr-2 h-4 w-4" />
@@ -95,7 +100,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'letter-agreement' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'letter-agreement' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('letter-agreement')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -103,7 +108,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start ${activeTab === 'maintenance-invoice' ? 'bg-spaceAccent' : ''} hover:bg-spaceAlt`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'maintenance-invoice' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('maintenance-invoice')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -112,10 +117,10 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             
           </div>
           
-          <div className="mt-auto">
+          <div className="mt-3 border-t border-spaceAccent/20 pt-3">
             <Button 
               variant="ghost" 
-              className="w-full justify-start text-red-500 hover:bg-red-500/10 hover:text-red-500"
+              className="w-full justify-start rounded-xl px-3 text-red-300 hover:bg-red-500/15 hover:text-red-200"
               onClick={handleLogout}
             >
               <LogOut className="mr-2 h-4 w-4" />
@@ -124,7 +129,6 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
           </div>
         </nav>
       </div>
-    </div>
+    </aside>
   );
 }
-

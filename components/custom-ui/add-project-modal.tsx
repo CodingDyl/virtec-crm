@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Customer } from '@/types/customer';
 import { Button } from "@/components/ui/button"
@@ -58,7 +58,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
       await addDoc(collection(db, "projects"), {
         ...formData,
         clientName: selectedCustomer?.companyName,
-        createdAt: new Date()
+        createdAt: serverTimestamp()
       });
       setOpen(false);
       onProjectAdded();

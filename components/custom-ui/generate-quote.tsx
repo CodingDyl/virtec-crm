@@ -40,6 +40,11 @@ const URGENCY_MULTIPLIERS = {
   'Extreme Rush': 1.4
 }
 
+const parseNumericInput = (value: string) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 function GenerateQuote() {
   const [projects, setProjects] = useState<Project[]>([])
   const [formData, setFormData] = useState<QuoteFormData>({
@@ -151,7 +156,7 @@ function GenerateQuote() {
           className="bg-space1 text-spaceText border-spaceAccent"
           placeholder={placeholder}
           value={formData.discountValue}
-          onChange={(e) => setFormData({...formData, discountValue: Number(e.target.value)})}
+          onChange={(e) => setFormData({...formData, discountValue: parseNumericInput(e.target.value)})}
         />
       </div>
     )
@@ -273,7 +278,7 @@ function GenerateQuote() {
               type="number"
               className="bg-space1 text-spaceText border-spaceAccent"
               value={formData.estimatedHours}
-              onChange={(e) => setFormData({...formData, estimatedHours: parseInt(e.target.value)})}
+              onChange={(e) => setFormData({...formData, estimatedHours: parseNumericInput(e.target.value)})}
             />
           </div>
           <div className="space-y-2">
@@ -282,7 +287,7 @@ function GenerateQuote() {
               type="number"
               className="bg-space1 text-spaceText border-spaceAccent"
               value={formData.hourlyRate}
-              onChange={(e) => setFormData({...formData, hourlyRate: parseInt(e.target.value)})}
+              onChange={(e) => setFormData({...formData, hourlyRate: parseNumericInput(e.target.value)})}
             />
           </div>
         </div>
@@ -334,7 +339,7 @@ function GenerateQuote() {
               type="number"
               className="bg-space1 text-spaceText border-spaceAccent"
               value={formData.hostingCost}
-              onChange={(e) => setFormData({...formData, hostingCost: parseInt(e.target.value)})}
+              onChange={(e) => setFormData({...formData, hostingCost: parseNumericInput(e.target.value)})}
             />
           </div>
         )}
@@ -347,7 +352,7 @@ function GenerateQuote() {
               type="number"
               className="bg-space1 text-spaceText border-spaceAccent"
               value={formData.maintenanceCost}
-              onChange={(e) => setFormData({...formData, maintenanceCost: parseInt(e.target.value)})}
+              onChange={(e) => setFormData({...formData, maintenanceCost: parseNumericInput(e.target.value)})}
             />
           </div>
         )}

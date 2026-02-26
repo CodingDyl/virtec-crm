@@ -15,6 +15,7 @@ import { ref, deleteObject } from 'firebase/storage';
 import { storage } from '@/firebase/firebaseConfig';
 import { useQuotes } from '@/contexts/DataContexts';
 import { Quantum } from 'ldrs/react';
+import { pickNumber, toDate } from '@/lib/firestore-schema';
 
 export default function Quotes() {
   const { quotes, isLoading, projectNames, lastUpdated, refreshData } = useQuotes();
@@ -48,19 +49,19 @@ export default function Quotes() {
   };
 
   const calculateTotalValue = () => {
-    return quotes.reduce((sum, quote) => sum + quote.total_amount, 0);
+    return quotes.reduce((sum, quote) => sum + pickNumber(quote as any, ["totalAmount", "total_amount"], 0), 0);
   };
 
   const calculateAcceptedValue = () => {
     return quotes
       .filter(quote => quote.status === 'accepted')
-      .reduce((sum, quote) => sum + quote.total_amount, 0);
+      .reduce((sum, quote) => sum + pickNumber(quote as any, ["totalAmount", "total_amount"], 0), 0);
   };
 
   const calculatePendingValue = () => {
     return quotes
       .filter(quote => quote.status === 'pending')
-      .reduce((sum, quote) => sum + quote.total_amount, 0);
+      .reduce((sum, quote) => sum + pickNumber(quote as any, ["totalAmount", "total_amount"], 0), 0);
   };
 
   const handleDeleteQuote = async (quoteId: string, pdfUrl: string) => {
@@ -260,14 +261,14 @@ export default function Quotes() {
               {quotes.map((quote) => (
                 <TableRow key={quote.id}>
                   <TableCell className="text-spaceText">
-                    {format(quote.created_at.toDate(), 'dd/MM/yyyy')}
+                    {format(toDate((quote as any).createdAt ?? quote.created_at) ?? new Date(), 'dd/MM/yyyy')}
                   </TableCell>
                   <TableCell className="text-spaceText">
-                    {projectNames[quote.project_id] || 'N/A'}
+                    {projectNames[(quote as any).projectId ?? quote.project_id] || 'N/A'}
                   </TableCell>
-                  <TableCell className="text-spaceText">{quote.project_type}</TableCell>
+                  <TableCell className="text-spaceText">{(quote as any).projectType ?? quote.project_type}</TableCell>
                   <TableCell className="text-spaceText">
-                    R{quote.total_amount.toLocaleString()}
+                    R{pickNumber(quote as any, ["totalAmount", "total_amount"], 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-spaceText">
                     <Badge variant={getStatusColor(quote.status)}>
@@ -288,14 +289,14 @@ export default function Quotes() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(quote.pdf_url, '_blank')}
+                      onClick={() => window.open((quote as any).pdfUrl ?? quote.pdf_url, '_blank')}
                     >
                       PDF
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteQuote(quote.id, quote.pdf_url)}
+                      onClick={() => handleDeleteQuote(quote.id, (quote as any).pdfUrl ?? quote.pdf_url)}
                     >
                       Delete
                     </Button>

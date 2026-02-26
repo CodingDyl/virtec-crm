@@ -11,6 +11,8 @@ import { Loader2 } from "lucide-react"
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/firebase/firebaseConfig'
 import { toast } from 'sonner'
+import Image from 'next/image'
+import icon from '@/app/icon.png'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -41,11 +43,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-space1 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-space2 border-spaceAccent">
+      <Card className="w-full max-w-md p-1">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-spaceText text-center">Welcome Back</CardTitle>
-          <CardDescription className="text-spaceAlt text-center">
-            Enter your credentials to access your account
+          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-space1/80 border border-spaceAccent/30">
+            <Image src={icon} alt="Virtara logo" width={32} height={32} />
+          </div>
+          <CardTitle className="virtara-display text-3xl text-spaceText text-center">Welcome Back</CardTitle>
+          <CardDescription className="text-spaceAlt/90 text-center">
+            Sign in to manage your projects, customers, and growth data.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -77,7 +82,7 @@ export default function LoginPage() {
             </div>
             <Button 
               type="submit" 
-              className="w-full bg-spaceAccent hover:bg-spaceAlt text-space1 font-semibold"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -92,14 +97,14 @@ export default function LoginPage() {
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-spaceAlt text-center">
+          <div className="text-sm text-spaceAlt/80 text-center">
             Don&apos;t have an account?{' '}
-            <a href="#" className="text-spaceAccent hover:underline">
+            <a href="#" className="text-spaceAccent hover:underline underline-offset-4">
               Sign up
             </a>
           </div>
-          <div className="text-sm text-spaceAlt text-center">
-            <a href="#" className="text-spaceAccent hover:underline">
+          <div className="text-sm text-spaceAlt/80 text-center">
+            <a href="#" className="text-spaceAccent hover:underline underline-offset-4">
               Forgot your password?
             </a>
           </div>

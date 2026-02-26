@@ -12,12 +12,20 @@ const config: Config = {
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
-			space1: '#2d3250',
-			space2: '#424769',
-			spaceAlt: '#676f9d',
-			spaceText: '#ffffff',
-			spaceAccent: '#f9b17a',
-			bg_color: '#100d28',
+			space1: '#050910',
+			space2: '#060A11',
+			spaceAlt: '#6FC2FF',
+			spaceText: '#EDF4FF',
+			spaceAccent: '#8DF6FF',
+			bg_color: '#050910',
+			brand: {
+				cyan: '#00F2FE',
+				blue: '#4EA4FF',
+				sky: '#6FC2FF',
+				bright: '#35D7FF',
+				pink: '#FF00E5',
+				dark: '#0F0F0F'
+			},
   			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'

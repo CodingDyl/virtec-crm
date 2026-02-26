@@ -37,6 +37,7 @@ import 'ldrs/react/Quantum.css';
 import { useState, useEffect } from 'react';
 import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
+import { pickNumber, toDate } from '@/lib/firestore-schema';
 
 interface EnhancedDashboardData {
   totalRevenue: number;
@@ -123,9 +124,10 @@ export default function OverviewSection() {
 
           // Calculate customer metrics
           const newCustomersThisMonth = customers.filter(c => {
-            if (!c.created_at) return false;
+            const customerCreatedAt = c.createdAt ?? c.created_at;
+            if (!customerCreatedAt) return false;
             try {
-              const createdDate = c.created_at.toDate();
+              const createdDate = customerCreatedAt.toDate();
               return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear;
             } catch (error) {
               return false;
@@ -179,16 +181,20 @@ export default function OverviewSection() {
 
           // Get recent activity
           const recentQuotes = quotes
-            .sort((a, b) => b.created_at.toDate().getTime() - a.created_at.toDate().getTime())
+            .sort((a, b) => {
+              const dateB = toDate((b as any).createdAt ?? b.created_at)?.getTime() ?? 0;
+              const dateA = toDate((a as any).createdAt ?? a.created_at)?.getTime() ?? 0;
+              return dateB - dateA;
+            })
             .slice(0, 5);
 
           const recentActivity = recentQuotes.map(q => ({
             type: 'quote',
-            title: `Quote for ${q.project_type}`,
-            amount: q.total_amount,
+            title: `Quote for ${(q as any).projectType ?? q.project_type}`,
+            amount: pickNumber(q as any, ["totalAmount", "total_amount"], 0),
             status: q.status,
-            date: q.created_at.toDate(),
-            description: `R${q.total_amount.toLocaleString()} - ${q.status}`
+            date: toDate((q as any).createdAt ?? q.created_at) ?? new Date(),
+            description: `R${pickNumber(q as any, ["totalAmount", "total_amount"], 0).toLocaleString()} - ${q.status}`
           }));
 
           // Project status breakdown - handle all possible statuses

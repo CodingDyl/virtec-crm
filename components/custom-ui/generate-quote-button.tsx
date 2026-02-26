@@ -4,6 +4,7 @@ import {
   Page, 
   Text, 
   View, 
+  Image as PdfImage,
   StyleSheet, 
   pdf
 } from '@react-pdf/renderer';
@@ -15,66 +16,111 @@ import { collection, doc, updateDoc, setDoc, serverTimestamp, getDoc } from 'fir
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from "sonner"
 import { Project } from '@/types/project';
+import icon from '@/app/icon.png';
 
 // Define styles for PDF
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f7fbff',
     padding: 30,
   },
-  header: {
-    marginBottom: 20,
+  headerCard: {
+    backgroundColor: '#060A11',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
+  logo: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+  },
+  brandText: {
+    fontSize: 12,
+    color: '#8DF6FF',
+    letterSpacing: 0.8,
+  },
+  header: {
+    marginBottom: 2,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 6,
+    color: '#EDF4FF',
+  },
   subtitle: {
-    fontSize: 16,
-    color: '#666666',
-    marginBottom: 20,
+    fontSize: 11,
+    color: '#B8D3F0',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  chip: {
+    fontSize: 9,
+    color: '#8DF6FF',
+    borderWidth: 1,
+    borderColor: '#18426f',
+    borderRadius: 999,
+    paddingTop: 4,
+    paddingBottom: 4,
+    paddingHorizontal: 8,
+    marginRight: 6,
   },
   section: {
-    marginBottom: 15,
+    marginBottom: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d7e8fb',
+    padding: 12,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
+    color: '#0e3563',
     marginBottom: 5,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 5,
+    paddingVertical: 4,
   },
   label: {
-    fontSize: 12,
-    color: '#333333',
+    fontSize: 10,
+    color: '#425f82',
   },
   value: {
-    fontSize: 12,
-    color: '#666666',
+    fontSize: 10,
+    color: '#122943',
     flexWrap: 'wrap',
     lineHeight: 1.4
   },
   total: {
-    marginTop: 20,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#cccccc',
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: '#060A11',
+    padding: 12,
   },
   totalText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
+    color: '#8DF6FF',
   },
   footer: {
     position: 'absolute',
     bottom: 30,
     left: 30,
     right: 30,
-    fontSize: 10,
-    color: '#666666',
+    fontSize: 9,
+    color: '#54708f',
     textAlign: 'center',
   },
   featureItem: {
@@ -89,6 +135,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
   },
 });
+const BRAND_LOGO_SRC = icon?.src;
 
 // Add interface for form data
 interface FormData {
@@ -177,15 +224,22 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
       
       const quoteData = {
         ...formData,
-        project_id: projectId,
-        project_type: formData.projectType,
-        total_amount: calculateQuote(),
+        projectId,
+        project_id: projectId, // legacy compatibility
+        projectType: formData.projectType,
+        project_type: formData.projectType, // legacy compatibility
+        totalAmount: calculateQuote(),
+        total_amount: calculateQuote(), // legacy compatibility
         status: 'pending',
-        created_at: serverTimestamp(),
-        pdf_url: pdfUrl,
+        createdAt: serverTimestamp(),
+        created_at: serverTimestamp(), // legacy compatibility
+        pdfUrl,
+        pdf_url: pdfUrl, // legacy compatibility
         features: formData.features,
-        hosting_cost: formData.hostingCost,
-        maintenance_cost: formData.maintenanceCost
+        hostingCost: formData.hostingCost,
+        hosting_cost: formData.hostingCost, // legacy compatibility
+        maintenanceCost: formData.maintenanceCost,
+        maintenance_cost: formData.maintenanceCost, // legacy compatibility
       };
       
       await setDoc(quoteRef, quoteData);
@@ -268,11 +322,22 @@ const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, 
     <Document>
       <Page size="A4" style={styles.page}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>{company} {formData.documentType}</Text>
-          <Text style={styles.subtitle}>
-            Generated on {format(new Date(), 'MMMM dd, yyyy')}
-          </Text>
+        <View style={styles.headerCard}>
+          <View style={styles.headerTopRow}>
+            {BRAND_LOGO_SRC ? <PdfImage src={BRAND_LOGO_SRC} style={styles.logo} /> : <View style={styles.logo} />}
+            <Text style={styles.brandText}>VIRTARA CRM</Text>
+          </View>
+          <View style={styles.header}>
+            <Text style={styles.title}>{company} {formData.documentType}</Text>
+            <Text style={styles.subtitle}>
+              Generated on {format(new Date(), 'MMMM dd, yyyy')}
+            </Text>
+            <View style={styles.chipRow}>
+              <Text style={styles.chip}>{formData.projectType}</Text>
+              <Text style={styles.chip}>{formData.urgency}</Text>
+              <Text style={styles.chip}>{formData.complexity}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Updated Client Info */}

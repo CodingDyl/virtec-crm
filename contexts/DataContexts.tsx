@@ -1,12 +1,12 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
-import { REFRESH_INTERVAL } from '@/constants';
 import { Customer } from '@/types/customer';
 import { Project } from '@/types/project';
 import { Quote } from '@/types/quote';
+import { normalizeQuote, pickNumber } from '@/lib/firestore-schema';
 
 // Quotes Context
 interface QuotesContextType {
@@ -14,61 +14,54 @@ interface QuotesContextType {
   isLoading: boolean;
   refreshData: () => Promise<void>;
   lastUpdated: Date | null;
-  projectNames: {[key: string]: string};
+  projectNames: { [key: string]: string };
 }
 
 const QuotesContext = createContext<QuotesContextType | undefined>(undefined);
 
 export function QuotesProvider({ children }: { children: React.ReactNode }) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [projectsById, setProjectsById] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [projectNames, setProjectNames] = useState<{[key: string]: string}>({});
-
-  const fetchQuotes = useCallback(async () => {
-    const isInitialLoad = !lastUpdated;
-    if (isInitialLoad) setIsLoading(true);
-
-    try {
-      const querySnapshot = await getDocs(collection(db, "quotes"));
-      const quotesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Quote[];
-      
-      // Fetch project names
-      const projectNamesMap: {[key: string]: string} = {};
-      for (const quote of quotesData) {
-        if (quote.project_id) {
-          const projectDoc = await getDoc(doc(db, "projects", quote.project_id));
-          if (projectDoc.exists()) {
-            projectNamesMap[quote.project_id] = projectDoc.data().clientName;
-          }
-        }
-      }
-
-      setQuotes(quotesData);
-      setProjectNames(projectNamesMap);
-      setLastUpdated(new Date());
-    } finally {
-      if (isInitialLoad) setIsLoading(false);
-    }
-  }, [lastUpdated]);
 
   useEffect(() => {
-    fetchQuotes();
-    const intervalId = setInterval(fetchQuotes, REFRESH_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [fetchQuotes]);
+    const unsubProjects = onSnapshot(collection(db, "projects"), (snapshot) => {
+      const map: Record<string, any> = {};
+      snapshot.docs.forEach((doc) => {
+        map[doc.id] = doc.data();
+      });
+      setProjectsById(map);
+    });
+
+    const unsubQuotes = onSnapshot(collection(db, "quotes"), (snapshot) => {
+      const quotesData = snapshot.docs.map((doc) => normalizeQuote(doc.id, doc.data()));
+      setQuotes(quotesData);
+      setLastUpdated(new Date());
+      setIsLoading(false);
+    });
+
+    return () => {
+      unsubProjects();
+      unsubQuotes();
+    };
+  }, []);
+
+  const projectNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    Object.entries(projectsById).forEach(([id, project]) => {
+      names[id] = project.clientName ?? project.companyName ?? project.projectType ?? "Unknown Project";
+    });
+    return names;
+  }, [projectsById]);
+
+  const refreshData = async () => {
+    // Realtime subscriptions keep data synced; this updates the "last updated" signal.
+    setLastUpdated(new Date());
+  };
 
   return (
-    <QuotesContext.Provider value={{ 
-      quotes, 
-      isLoading, 
-      refreshData: fetchQuotes, 
-      lastUpdated,
-      projectNames 
-    }}>
+    <QuotesContext.Provider value={{ quotes, isLoading, refreshData, lastUpdated, projectNames }}>
       {children}
     </QuotesContext.Provider>
   );
@@ -95,36 +88,26 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchProjects = useCallback(async () => {
-    const isInitialLoad = !lastUpdated;
-    if (isInitialLoad) setIsLoading(true);
-
-    try {
-      const querySnapshot = await getDocs(collection(db, "projects"));
-      const projectsData = querySnapshot.docs.map(doc => ({
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "projects"), (snapshot) => {
+      const projectsData = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as Project[];
       setProjects(projectsData);
       setLastUpdated(new Date());
-    } finally {
-      if (isInitialLoad) setIsLoading(false);
-    }
-  }, [lastUpdated]);
+      setIsLoading(false);
+    });
 
-  useEffect(() => {
-    fetchProjects();
-    const intervalId = setInterval(fetchProjects, REFRESH_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [fetchProjects]);
+    return unsubscribe;
+  }, []);
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
 
   return (
-    <ProjectsContext.Provider value={{ 
-      projects, 
-      isLoading, 
-      refreshData: fetchProjects, 
-      lastUpdated 
-    }}>
+    <ProjectsContext.Provider value={{ projects, isLoading, refreshData, lastUpdated }}>
       {children}
     </ProjectsContext.Provider>
   );
@@ -147,62 +130,89 @@ interface CustomersContextType {
 const CustomersContext = createContext<CustomersContextType | undefined>(undefined);
 
 export function CustomersProvider({ children }: { children: React.ReactNode }) {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customersRaw, setCustomersRaw] = useState<any[]>([]);
+  const [projectsRaw, setProjectsRaw] = useState<any[]>([]);
+  const [acceptedQuotesRaw, setAcceptedQuotesRaw] = useState<any[]>([]);
+  const [loadedCollections, setLoadedCollections] = useState({
+    customers: false,
+    projects: false,
+    quotes: false,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchCustomers = useCallback(async () => {
-    const isInitialLoad = !lastUpdated;
-    if (isInitialLoad) setIsLoading(true);
+  useEffect(() => {
+    const unsubCustomers = onSnapshot(collection(db, "customers"), (snapshot) => {
+      setCustomersRaw(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setLoadedCollections((prev) => ({ ...prev, customers: true }));
+    });
 
-    try {
-      const querySnapshot = await getDocs(collection(db, "customers"));
-      const customersData = await Promise.all(querySnapshot.docs.map(async (doc) => {
-        const projectsSnapshot = await getDocs(
-          query(collection(db, "projects"), where("clientId", "==", doc.id))
-        );
-        
-        let totalSpent = 0;
-        for (const projectDoc of projectsSnapshot.docs) {
-          const quotesSnapshot = await getDocs(
-            query(collection(db, "quotes"), 
-              where("project_id", "==", projectDoc.id),
-              where("status", "==", "accepted")
-            )
-          );
-          
-          totalSpent += quotesSnapshot.docs.reduce((sum, quote) => 
-            sum + (quote.data().total_amount || 0), 0
-          );
-        }
+    const unsubProjects = onSnapshot(collection(db, "projects"), (snapshot) => {
+      setProjectsRaw(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setLoadedCollections((prev) => ({ ...prev, projects: true }));
+    });
 
-        return {
-          id: doc.id,
-          ...doc.data(),
-          totalSpent,
-        };
-      }));
-      
-      setCustomers(customersData as Customer[]);
-      setLastUpdated(new Date());
-    } finally {
-      if (isInitialLoad) setIsLoading(false);
-    }
-  }, [lastUpdated]);
+    const unsubQuotes = onSnapshot(
+      query(collection(db, "quotes"), where("status", "==", "accepted")),
+      (snapshot) => {
+        setAcceptedQuotesRaw(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoadedCollections((prev) => ({ ...prev, quotes: true }));
+      }
+    );
+
+    return () => {
+      unsubCustomers();
+      unsubProjects();
+      unsubQuotes();
+    };
+  }, []);
+
+  const customers = useMemo(() => {
+    const projectsByClient = new Map<string, string[]>();
+    projectsRaw.forEach((project) => {
+      const clientId = project.clientId;
+      if (!clientId) return;
+      const existing = projectsByClient.get(clientId) ?? [];
+      existing.push(project.id);
+      projectsByClient.set(clientId, existing);
+    });
+
+    const quoteTotalByProject = new Map<string, number>();
+    acceptedQuotesRaw.forEach((quote) => {
+      const projectId = quote.projectId ?? quote.project_id;
+      if (!projectId) return;
+      const current = quoteTotalByProject.get(projectId) ?? 0;
+      quoteTotalByProject.set(projectId, current + pickNumber(quote, ["totalAmount", "total_amount"], 0));
+    });
+
+    return customersRaw.map((customer) => {
+      const customerProjectIds = projectsByClient.get(customer.id) ?? [];
+      const totalSpent = customerProjectIds.reduce((sum, projectId) => {
+        return sum + (quoteTotalByProject.get(projectId) ?? 0);
+      }, 0);
+
+      return {
+        ...customer,
+        createdAt: customer.createdAt ?? customer.created_at ?? null,
+        totalSpent,
+      };
+    }) as Customer[];
+  }, [acceptedQuotesRaw, customersRaw, projectsRaw]);
 
   useEffect(() => {
-    fetchCustomers();
-    const intervalId = setInterval(fetchCustomers, REFRESH_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [fetchCustomers]);
+    if (!loadedCollections.customers || !loadedCollections.projects || !loadedCollections.quotes) {
+      return;
+    }
+    setLastUpdated(new Date());
+    setIsLoading(false);
+  }, [customersRaw, projectsRaw, acceptedQuotesRaw, loadedCollections]);
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
 
   return (
-    <CustomersContext.Provider value={{ 
-      customers, 
-      isLoading, 
-      refreshData: fetchCustomers, 
-      lastUpdated 
-    }}>
+    <CustomersContext.Provider value={{ customers, isLoading, refreshData, lastUpdated }}>
       {children}
     </CustomersContext.Provider>
   );
@@ -237,36 +247,26 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchSubscribers = useCallback(async () => {
-    const isInitialLoad = !lastUpdated;
-    if (isInitialLoad) setIsLoading(true);
-
-    try {
-      const querySnapshot = await getDocs(collection(db, "subscribers"));
-      const subscribersData = querySnapshot.docs.map(doc => ({
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "subscribers"), (snapshot) => {
+      const subscribersData = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as Subscriber[];
       setSubscribers(subscribersData);
       setLastUpdated(new Date());
-    } finally {
-      if (isInitialLoad) setIsLoading(false);
-    }
-  }, [lastUpdated]);
+      setIsLoading(false);
+    });
 
-  useEffect(() => {
-    fetchSubscribers();
-    const intervalId = setInterval(fetchSubscribers, REFRESH_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [fetchSubscribers]);
+    return unsubscribe;
+  }, []);
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
 
   return (
-    <SubscriptionsContext.Provider value={{ 
-      subscribers, 
-      isLoading, 
-      refreshData: fetchSubscribers, 
-      lastUpdated 
-    }}>
+    <SubscriptionsContext.Provider value={{ subscribers, isLoading, refreshData, lastUpdated }}>
       {children}
     </SubscriptionsContext.Provider>
   );

@@ -1,9 +1,9 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
-import { Timestamp } from 'firebase/firestore';
+import { pickNumber, toDate } from '@/lib/firestore-schema';
 
 interface DashboardData {
   totalRevenue: number;
@@ -15,12 +15,6 @@ interface DashboardData {
   lastUpdated: Date | null;
 }
 
-interface Customer {
-  id: string;
-  created_at: Timestamp;
-  // add other customer fields as needed
-}
-
 interface DashboardContextType {
   dashboardData: DashboardData;
   isLoading: boolean;
@@ -28,184 +22,141 @@ interface DashboardContextType {
   lastUpdated: Date | null;
 }
 
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
-
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
-export function DashboardProvider({ children }: { children: React.ReactNode }) {
-  const [dashboardData, setDashboardData] = useState<DashboardData>({
-    totalRevenue: 0,
-    activeProjects: 0,
-    totalCustomers: 0,
-    conversionRate: 0,
-    revenueData: [],
-    recentCustomers: [],
-    lastUpdated: null
+function createRollingMonthTotals(quotes: any[], maintenanceInvoices: any[]) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+  const now = new Date();
+
+  return months.map((_, index) => {
+    const current = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+    const month = current.getMonth();
+    const year = current.getFullYear();
+
+    const quoteTotal = quotes.reduce((sum, quote) => {
+      const createdAt = toDate(quote.createdAt ?? quote.created_at);
+      if (!createdAt || createdAt.getMonth() !== month || createdAt.getFullYear() !== year) return sum;
+      return sum + pickNumber(quote, ["totalAmount", "total_amount"], 0);
+    }, 0);
+
+    const invoiceTotal = maintenanceInvoices.reduce((sum, invoice) => {
+      const invoiceDate = toDate(invoice.date ?? invoice.createdAt ?? invoice.created_at);
+      if (!invoiceDate || invoiceDate.getMonth() !== month || invoiceDate.getFullYear() !== year) return sum;
+      return sum + pickNumber(invoice, ["totalAmount", "total_amount"], 0);
+    }, 0);
+
+    return {
+      name: current.toLocaleString('default', { month: 'short' }),
+      total: quoteTotal + invoiceTotal,
+    };
   });
-  const [isLoading, setIsLoading] = useState(true);
+}
+
+export function DashboardProvider({ children }: { children: React.ReactNode }) {
+  const [acceptedQuotes, setAcceptedQuotes] = useState<any[]>([]);
+  const [allQuotes, setAllQuotes] = useState<any[]>([]);
+  const [paidMaintenanceInvoices, setPaidMaintenanceInvoices] = useState<any[]>([]);
+  const [activeProjectsCount, setActiveProjectsCount] = useState(0);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loaded, setLoaded] = useState({
+    acceptedQuotes: false,
+    allQuotes: false,
+    maintenance: false,
+    projects: false,
+    customers: false,
+  });
 
-  const generateMonthlyRevenueData = async () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentMonth = new Date().getMonth();
-    
-    // Fetch accepted quotes
-    const quotesSnapshot = await getDocs(
-      query(collection(db, "quotes"), where("status", "==", "accepted"))
-    );
-    
-    // Fetch paid maintenance invoices
-    const maintenanceSnapshot = await getDocs(
-      query(collection(db, "maintenance_invoices"), where("status", "==", "paid"))
-    );
-
-    return months.map((month, index) => ({
-      name: month,
-      total: [...quotesSnapshot.docs, ...maintenanceSnapshot.docs]
-        .filter(doc => {
-          const docData = doc.data();
-          const docDate = docData.created_at?.toDate() || docData.date?.toDate();
-          return docDate && docDate.getMonth() === ((currentMonth - (5 - index)) % 12);
-        })
-        .reduce((sum, doc) => sum + (doc.data().total_amount || 0), 0)
-    }));
-  };
-
-  const fetchDashboardData = useCallback(async () => {
-    // Don't set loading to true for auto-refresh updates
-    const isInitialLoad = !lastUpdated;
-    if (isInitialLoad) {
-      setIsLoading(true);
-    }
-
-    try {
-      console.log("Starting dashboard data fetch...");
-      // Fetch Quotes for Revenue
-      const quotesSnapshot = await getDocs(
-        query(collection(db, "quotes"), 
-        where("status", "==", "accepted"))
-      );
-      let totalRev = quotesSnapshot.docs.reduce((sum, doc) => 
-        sum + (doc.data().total_amount || 0), 0
-      );
-
-      // Fetch Maintenance Invoices for Revenue
-      const maintenanceSnapshot = await getDocs(
-        query(collection(db, "maintenance_invoices"), 
-        where("status", "==", "paid"))
-      );
-      totalRev += maintenanceSnapshot.docs.reduce((sum, doc) => 
-        sum + (doc.data().totalAmount || 0), 0
-      );
-
-      // Fetch Active Projects
-      const projectsSnapshot = await getDocs(
-        query(collection(db, "projects"), 
-        where("status", "==", "active"))
-      );
-
-      // Fetch Total Customers
-      const customersSnapshot = await getDocs(collection(db, "customers"));
-
-      // Calculate Conversion Rate
-      const allQuotesSnapshot = await getDocs(collection(db, "quotes"));
-      const acceptedQuotes = allQuotesSnapshot.docs.filter(doc => 
-        doc.data().status === "accepted"
-      ).length;
-      const convRate = (acceptedQuotes / allQuotesSnapshot.size) * 100;
-
-      // Get Recent Customers
-      const recentCustomersData = customersSnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Customer))
-        .filter(customer => customer.created_at && customer.created_at.toDate) // Filter out invalid entries
-        .sort((a, b) => {
-          try {
-            return b.created_at.toDate().getTime() - a.created_at.toDate().getTime();
-          } catch (error) {
-            console.warn(`Error sorting customer dates for IDs ${a.id} and ${b.id}:`, error);
-            return 0; // Keep relative order unchanged in case of error
-          }
-        })
-        .slice(0, 5);
-
-      // Generate Revenue Data
-      const monthlyRevenue = await generateMonthlyRevenueData();
-
-      console.log("Dashboard data fetched successfully:", {
-        totalRevenue: totalRev,
-        activeProjects: projectsSnapshot.size,
-        totalCustomers: customersSnapshot.size,
-        conversionRate: Number(convRate.toFixed(1))
-      });
-
-      setDashboardData({
-        totalRevenue: totalRev,
-        activeProjects: projectsSnapshot.size,
-        totalCustomers: customersSnapshot.size,
-        conversionRate: Number(convRate.toFixed(1)),
-        revenueData: monthlyRevenue,
-        recentCustomers: recentCustomersData,
-        lastUpdated: new Date()
-      });
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-      // Set some default data to prevent infinite loading
-      setDashboardData({
-        totalRevenue: 0,
-        activeProjects: 0,
-        totalCustomers: 0,
-        conversionRate: 0,
-        revenueData: [],
-        recentCustomers: [],
-        lastUpdated: new Date()
-      });
-    } finally {
-      if (isInitialLoad) {
-        setIsLoading(false);
-      }
-    }
-  }, [lastUpdated]);
-
-  // Initial load
   useEffect(() => {
-    fetchDashboardData();
+    const unsubAcceptedQuotes = onSnapshot(
+      query(collection(db, "quotes"), where("status", "==", "accepted")),
+      (snapshot) => {
+        setAcceptedQuotes(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoaded((prev) => ({ ...prev, acceptedQuotes: true }));
+      }
+    );
+
+    const unsubAllQuotes = onSnapshot(collection(db, "quotes"), (snapshot) => {
+      setAllQuotes(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setLoaded((prev) => ({ ...prev, allQuotes: true }));
+    });
+
+    const unsubMaintenance = onSnapshot(
+      query(collection(db, "maintenance_invoices"), where("status", "==", "paid")),
+      (snapshot) => {
+        setPaidMaintenanceInvoices(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoaded((prev) => ({ ...prev, maintenance: true }));
+      }
+    );
+
+    const unsubProjects = onSnapshot(
+      query(collection(db, "projects"), where("status", "==", "active")),
+      (snapshot) => {
+        setActiveProjectsCount(snapshot.size);
+        setLoaded((prev) => ({ ...prev, projects: true }));
+      }
+    );
+
+    const unsubCustomers = onSnapshot(collection(db, "customers"), (snapshot) => {
+      setCustomers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setLoaded((prev) => ({ ...prev, customers: true }));
+    });
+
+    return () => {
+      unsubAcceptedQuotes();
+      unsubAllQuotes();
+      unsubMaintenance();
+      unsubProjects();
+      unsubCustomers();
+    };
   }, []);
 
-  // Set up periodic refresh
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchDashboardData();
-    }, REFRESH_INTERVAL);
+  const dashboardData = useMemo<DashboardData>(() => {
+    const quoteRevenue = acceptedQuotes.reduce((sum, quote) => {
+      return sum + pickNumber(quote, ["totalAmount", "total_amount"], 0);
+    }, 0);
 
-    // Cleanup on unmount
-    return () => clearInterval(intervalId);
-  }, [fetchDashboardData]);
+    const maintenanceRevenue = paidMaintenanceInvoices.reduce((sum, invoice) => {
+      return sum + pickNumber(invoice, ["totalAmount", "total_amount"], 0);
+    }, 0);
 
-  // Add visibility change handler to refresh when tab becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchDashboardData();
-      }
+    const acceptedCount = allQuotes.filter((quote) => quote.status === "accepted").length;
+    const conversionRate = allQuotes.length > 0 ? (acceptedCount / allQuotes.length) * 100 : 0;
+
+    const recentCustomers = [...customers]
+      .filter((customer) => toDate(customer.createdAt ?? customer.created_at))
+      .sort((a, b) => {
+        const dateA = toDate(a.createdAt ?? a.created_at)?.getTime() ?? 0;
+        const dateB = toDate(b.createdAt ?? b.created_at)?.getTime() ?? 0;
+        return dateB - dateA;
+      })
+      .slice(0, 5);
+
+    return {
+      totalRevenue: quoteRevenue + maintenanceRevenue,
+      activeProjects: activeProjectsCount,
+      totalCustomers: customers.length,
+      conversionRate: Number(conversionRate.toFixed(1)),
+      revenueData: createRollingMonthTotals(acceptedQuotes, paidMaintenanceInvoices),
+      recentCustomers,
+      lastUpdated: new Date(),
     };
+  }, [acceptedQuotes, allQuotes, paidMaintenanceInvoices, activeProjectsCount, customers]);
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [fetchDashboardData]);
+  useEffect(() => {
+    if (Object.values(loaded).every(Boolean)) {
+      setLastUpdated(new Date());
+      setIsLoading(false);
+    }
+  }, [loaded, dashboardData]);
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
 
   return (
-    <DashboardContext.Provider value={{ 
-      dashboardData, 
-      isLoading, 
-      refreshData: fetchDashboardData,
-      lastUpdated 
-    }}>
+    <DashboardContext.Provider value={{ dashboardData, isLoading, refreshData, lastUpdated }}>
       {children}
     </DashboardContext.Provider>
   );
@@ -217,4 +168,4 @@ export function useDashboard() {
     throw new Error('useDashboard must be used within a DashboardProvider');
   }
   return context;
-} 
+}

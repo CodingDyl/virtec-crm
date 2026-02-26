@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Chakra_Petch, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'sonner'
 import { DashboardProvider } from "@/contexts/DashboardContext";
@@ -10,20 +10,21 @@ import {
   SubscriptionsProvider 
 } from "@/contexts/DataContexts";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+const chakraPetch = Chakra_Petch({
+  subsets: ["latin"],
+  variable: "--font-chakra",
+  weight: ["400", "500", "600", "700"],
 });
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
+
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
-  title: "Virtara | Management System",
-  description: "Virtara | Management System",
+  title: "Virtara | CRM",
+  description: "Virtara CRM dashboard",
 };
 
 export default function RootLayout({
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${chakraPetch.variable} ${sora.variable} antialiased`}
       >
         <DashboardProvider>
           <QuotesProvider>

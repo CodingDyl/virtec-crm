@@ -37,7 +37,7 @@ export function AddCustomerModal({ onCustomerAdded }: AddCustomerModalProps) {
         ...formData,
         totalSpent: 0,
         status: true,
-        created_at: serverTimestamp(),
+        createdAt: serverTimestamp(),
       });
       setOpen(false);
       onCustomerAdded();

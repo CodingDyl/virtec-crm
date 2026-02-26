@@ -18,6 +18,7 @@ import { storage } from '@/firebase/firebaseConfig';
 import { toast } from 'react-toastify';
 import { Quantum } from 'ldrs/react';
 import 'ldrs/react/Quantum.css';
+import { pickNumber, toDate } from '@/lib/firestore-schema';
 
 export default function ProjectsTable() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -354,12 +355,12 @@ export default function ProjectsTable() {
           {selectedQuote && (
             <div className="space-y-4">
               <div className="text-spaceText">
-                <p>Amount: R{selectedQuote.total_amount?.toLocaleString()}</p>
+                <p>Amount: R{pickNumber(selectedQuote as any, ["totalAmount", "total_amount"], 0).toLocaleString()}</p>
                 <p>Status: {selectedQuote.status}</p>
-                <p>Created: {selectedQuote.created_at?.toDate().toUTCString()}</p>
+                <p>Created: {(toDate((selectedQuote as any).createdAt ?? selectedQuote.created_at) ?? new Date()).toUTCString()}</p>
               </div>
               <Button
-                onClick={() => window.open(selectedQuote.pdf_url, '_blank')}
+                onClick={() => window.open((selectedQuote as any).pdfUrl ?? selectedQuote.pdf_url, '_blank')}
                 className="bg-spaceAccent hover:bg-spaceAlt text-spaceText w-full"
               >
                 Download Quote PDF

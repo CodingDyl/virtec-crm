@@ -32,6 +32,7 @@ interface MaintenanceItem {
 
 interface MaintenanceInvoice {
   id: string;
+  invoiceNumber?: string;
   projectId: string;
   clientId: string;
   company: string;
@@ -200,17 +201,18 @@ export default function MaintenanceTable() {
     if (!client) return;
     
     setSelectedInvoice(invoice);
+    const invoiceLabel = invoice.invoiceNumber || `INV-${invoice.id.slice(0, 8).toUpperCase()}`;
     
     // Different message for re-sending vs first time
     const isResending = invoice.status === 'emailed';
     const message = isResending 
-      ? `Dear ${client.name},\n\nPlease find attached the maintenance invoice for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nIf you have already received this invoice, please disregard this duplicate.\n\nThank you for your business.\n\nBest regards,\nVirtara Team`
-      : `Dear ${client.name},\n\nPlease find attached the maintenance invoice for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nThank you for your business.\n\nBest regards,\nVirtara Team`;
+      ? `Dear ${client.name},\n\nPlease find attached maintenance invoice ${invoiceLabel} for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nIf you have already received this invoice, please disregard this duplicate.\n\nThank you for your business.\n\nBest regards,\nVirtara Team`
+      : `Dear ${client.name},\n\nPlease find attached maintenance invoice ${invoiceLabel} for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nThank you for your business.\n\nBest regards,\nVirtara Team`;
     
     setEmailForm({
       toEmail: client.email,
       ccEmail: '',
-      subject: `Invoice - ${format(invoice.date.toDate(), 'MMM dd, yyyy')}`,
+      subject: `Invoice ${invoiceLabel} - ${format(invoice.date.toDate(), 'MMM dd, yyyy')}`,
       message: message
     });
     setEmailModalOpen(true);
@@ -248,6 +250,7 @@ export default function MaintenanceTable() {
           subject: emailForm.subject.trim(),
           message: emailForm.message.trim(),
           invoiceId: selectedInvoice.id,
+          invoiceNumber: selectedInvoice.invoiceNumber || `INV-${selectedInvoice.id.slice(0, 8).toUpperCase()}`,
           pdfUrl: selectedInvoice.pdfUrl,
           clientName: clients[selectedInvoice.clientId]?.name || 'Unknown Client'
         }),
@@ -398,6 +401,7 @@ export default function MaintenanceTable() {
         <Table>
           <TableHeader>
             <TableRow className="bg-space2">
+              <TableHead className="text-spaceText">Invoice #</TableHead>
               <TableHead className="text-spaceText">Date</TableHead>
               <TableHead className="text-spaceText">Client</TableHead>
               <TableHead className="text-spaceText">Email</TableHead>
@@ -411,13 +415,16 @@ export default function MaintenanceTable() {
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-spaceText py-8">
+                <TableCell colSpan={9} className="text-center text-spaceText py-8">
                   No maintenance invoices found
                 </TableCell>
               </TableRow>
             ) : (
               invoices.map((invoice) => (
                 <TableRow key={invoice.id} className="hover:bg-space1">
+                  <TableCell className="text-spaceText font-medium">
+                    {invoice.invoiceNumber || `INV-${invoice.id.slice(0, 8).toUpperCase()}`}
+                  </TableCell>
                   <TableCell className="text-spaceText">
                     {formatDate(invoice.date)}
                   </TableCell>

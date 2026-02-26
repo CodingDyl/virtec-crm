@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { toEmail, ccEmail, subject, message, invoiceId, pdfUrl, clientName } = body;
+    const { toEmail, ccEmail, subject, message, invoiceId, invoiceNumber, pdfUrl, clientName } = body;
 
     // Validate required fields
     if (!toEmail || !subject || !message || !pdfUrl) {
@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
     // Use a verified domain or the default Resend domain
     const fromEmail = process.env.FROM_EMAIL || '2610dylan@gmail.com';
     
+    const invoiceLabel = invoiceNumber || invoiceId;
+
     const emailData = {
       from: fromEmail,
       to: [toEmail],
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
       text: message, // Plain text fallback
       attachments: [
         {
-          filename: `${clientName}-invoice-${invoiceId}.pdf`,
+          filename: `${clientName}-invoice-${invoiceLabel}.pdf`,
           content: Buffer.from(pdfBuffer)
         }
       ]
@@ -72,6 +74,7 @@ export async function POST(request: NextRequest) {
       cc: ccEmail,
       subject: subject,
       invoiceId: invoiceId,
+      invoiceNumber: invoiceLabel,
       pdfSize: pdfBuffer.byteLength
     });
     
@@ -98,6 +101,7 @@ export async function POST(request: NextRequest) {
           cc: ccEmail,
           subject: subject,
           invoiceId: invoiceId,
+          invoiceNumber: invoiceLabel,
           clientName: clientName,
           timestamp: new Date().toISOString()
         }
