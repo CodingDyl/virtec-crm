@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { 
   Document, 
@@ -17,6 +19,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from "sonner"
 import { Project } from '@/types/project';
 import icon from '@/app/icon.png';
+import { features } from '@/constants';
 
 // Define styles for PDF
 const styles = StyleSheet.create({
@@ -176,6 +179,13 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
   // @ts-ignore
   const [clientData, setClientData] = useState<any>(null);
 
+  const getErrorMessage = (error: unknown) => {
+    if (error && typeof error === 'object' && 'message' in error) {
+      return String((error as { message: unknown }).message);
+    }
+    return String(error);
+  };
+
   // Fetch project and client data using projectId
   useEffect(() => {
     const fetchProjectAndClientData = async () => {
@@ -252,8 +262,9 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
       toast.success("Quote generated successfully!");
       if (onSuccess) onSuccess();
     } catch (error) {
+      const message = getErrorMessage(error);
       console.error("Error generating quote:", error);
-      toast.error("Failed to generate quote. Please try again.");
+      toast.error(`Failed to generate quote: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -293,9 +304,6 @@ interface QuotePDFProps {
 
 // PDF Document Component
 const QuotePDF: React.FC<QuotePDFProps> = ({ formData, totalAmount, clientData, company }) => {
-  // Import features to get multipliers
-  const { features } = require('@/constants');
-  
   // Calculate the original amount before discount
   const calculateOriginalAmount = () => {
     const baseQuote = formData.estimatedHours * formData.hourlyRate;

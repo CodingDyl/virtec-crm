@@ -9,189 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from 'date-fns'
-import { 
-  Document, 
-  Page, 
-  Text, 
-  View, 
-  Image as PdfImage,
-  StyleSheet, 
-  pdf 
-} from '@react-pdf/renderer'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { toast } from "sonner"
 import { Quantum } from 'ldrs/react'
-import icon from '@/app/icon.png'
-
-// Define styles for PDF
-const styles = StyleSheet.create({
-  page: {
-    backgroundColor: '#f7fbff',
-    padding: 30,
-  },
-  headerCard: {
-    backgroundColor: '#060A11',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  logo: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-  },
-  brandText: {
-    fontSize: 12,
-    color: '#8DF6FF',
-    letterSpacing: 0.8,
-  },
-  header: {
-    marginBottom: 2,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#EDF4FF',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 11,
-    color: '#B8D3F0',
-  },
-  section: {
-    marginBottom: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#d7e8fb',
-    padding: 12,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#0e3563',
-    marginBottom: 6,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  label: {
-    fontSize: 10,
-    color: '#425f82',
-  },
-  value: {
-    fontSize: 10,
-    color: '#122943',
-    flexWrap: 'wrap'
-  },
-  table: {
-    display: 'flex',
-    width: 'auto',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#c8def5',
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  tableHeaderRow: {
-    flexDirection: 'row',
-    backgroundColor: '#eaf5ff',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#d7e8fb',
-    backgroundColor: '#ffffff',
-  },
-  tableCol: {
-    width: '33%',
-    borderRightWidth: 1,
-    borderRightColor: '#d7e8fb',
-    padding: 5,
-  },
-  tableHead: {
-    fontSize: 10,
-    color: '#0e3563',
-    fontWeight: 'bold',
-  },
-  tableCell: {
-    fontSize: 10,
-    color: '#122943',
-  },
-  total: {
-    marginTop: 10,
-    borderRadius: 12,
-    backgroundColor: '#060A11',
-    padding: 12,
-  },
-  totalText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#8DF6FF',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 30,
-    right: 30,
-    fontSize: 9,
-    color: '#54708f',
-    textAlign: 'center',
-  },
-});
-
-const fallbackStyles = StyleSheet.create({
-  page: {
-    backgroundColor: '#ffffff',
-    padding: 30,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 11,
-    color: '#555555',
-    marginBottom: 14,
-  },
-  section: {
-    marginBottom: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 3,
-  },
-  label: {
-    fontSize: 10,
-    color: '#444444',
-  },
-  value: {
-    fontSize: 10,
-    color: '#111111',
-  },
-  total: {
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#cccccc',
-    paddingTop: 8,
-  },
-  totalText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-});
-
-const BRAND_LOGO_SRC = icon?.src;
 
 interface MaintenanceItem {
   title: string;
@@ -213,6 +33,8 @@ interface MaintenanceInvoiceData {
 
 export default function MaintenanceInvoice() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [maintenanceProjectCustomerIds, setMaintenanceProjectCustomerIds] = useState<Set<string>>(new Set());
+  const [maintenanceProjectClientNames, setMaintenanceProjectClientNames] = useState<Set<string>>(new Set());
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [formData, setFormData] = useState<MaintenanceInvoiceData>({
     clientId: '',
@@ -226,6 +48,8 @@ export default function MaintenanceInvoice() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const normalizeCompanyName = (value?: string) => (value || '').trim().toLowerCase();
 
   const generateInvoiceNumber = async (): Promise<string> => {
     const counterRef = doc(db, "system_counters", "maintenance_invoice");
@@ -249,20 +73,51 @@ export default function MaintenanceInvoice() {
   };
   useEffect(() => {
     const fetchCustomers = async () => {
-      const querySnapshot = await getDocs(collection(db, "customers"));
-      const customersData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Customer[];
-      setCustomers(customersData);
-      setIsLoading(false);
+      try {
+        const [customersSnapshot, projectsSnapshot] = await Promise.all([
+          getDocs(collection(db, "customers")),
+          getDocs(collection(db, "projects")),
+        ]);
+
+        const customersData = customersSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Customer[];
+
+        const maintenanceCustomerIds = new Set<string>();
+        const maintenanceClientNames = new Set<string>();
+
+        projectsSnapshot.docs.forEach((projectDoc) => {
+          const project = projectDoc.data() as Record<string, any>;
+          const rawProjectType = (project.projectType ?? project.project_type ?? '').toString();
+          const isMaintenanceProject = rawProjectType.trim().toLowerCase() === 'maintenance';
+          if (!isMaintenanceProject) return;
+
+          const clientId = (project.clientId ?? project.client_id ?? '').toString().trim();
+          if (clientId) maintenanceCustomerIds.add(clientId);
+
+          const clientName = normalizeCompanyName((project.clientName ?? project.companyName ?? '').toString());
+          if (clientName) maintenanceClientNames.add(clientName);
+        });
+
+        setCustomers(customersData);
+        setMaintenanceProjectCustomerIds(maintenanceCustomerIds);
+        setMaintenanceProjectClientNames(maintenanceClientNames);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchCustomers();
   }, []);
 
   const availableCustomers = customers.filter((customer) => {
     const isActive = customer.status !== false;
-    return customer.maintenance && isActive;
+    const hasMaintenanceFlag = customer.maintenance === true;
+    const customerId = (customer.id || '').trim();
+    const companyName = normalizeCompanyName(customer.companyName);
+    const hasMaintenanceProject = maintenanceProjectCustomerIds.has(customerId) || maintenanceProjectClientNames.has(companyName);
+
+    return isActive && (hasMaintenanceFlag || hasMaintenanceProject);
   });
 
   const calculateTotal = () => {
@@ -340,53 +195,30 @@ export default function MaintenanceInvoice() {
         const invoiceRef = doc(collection(db, "maintenance_invoices"));
         const invoiceNumber = await generateInvoiceNumber();
 
-        const invoiceDoc = (
-          <Document>
-            <Page size="A4" style={{ padding: 30, backgroundColor: "#ffffff" }}>
-              <Text style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>{formData.company} Maintenance Invoice</Text>
-              <Text style={{ fontSize: 11, color: "#555555", marginBottom: 14 }}>
-                Generated on {format(formData.date, 'MMMM dd, yyyy')} | Invoice #{invoiceNumber}
-              </Text>
-
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Client Information</Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-                  <Text style={{ fontSize: 10, color: "#444444" }}>Client Name:</Text>
-                  <Text style={{ fontSize: 10, color: "#111111" }}>{customerData.name}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-                  <Text style={{ fontSize: 10, color: "#444444" }}>Company:</Text>
-                  <Text style={{ fontSize: 10, color: "#111111" }}>{customerData.companyName}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-                  <Text style={{ fontSize: 10, color: "#444444" }}>Contact:</Text>
-                  <Text style={{ fontSize: 10, color: "#111111" }}>{customerData.contactNumber}</Text>
-                </View>
-              </View>
-
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Maintenance Items</Text>
-                {validItems.map((item, index) => (
-                  <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-                    <Text style={{ fontSize: 10, color: "#444444" }}>{item.title}</Text>
-                    <Text style={{ fontSize: 10, color: "#111111" }}>
-                      {item.hours}h | R{item.amount.toLocaleString()}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: "#cccccc", paddingTop: 8 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-                  <Text style={{ fontSize: 12, fontWeight: 700 }}>Total Amount:</Text>
-                  <Text style={{ fontSize: 12, fontWeight: 700 }}>R{totalAmount.toLocaleString()}</Text>
-                </View>
-              </View>
-            </Page>
-          </Document>
-        );
-
-        const pdfBlob = await pdf(invoiceDoc).toBlob();
+        const pdfResponse = await fetch('/api/maintenance-invoice-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            company: formData.company,
+            date: formData.date.toISOString(),
+            invoiceNumber,
+            customer: {
+              name: customerData.name || '',
+              companyName: customerData.companyName || '',
+              contactNumber: customerData.contactNumber || '',
+            },
+            items: validItems.map((item) => ({
+              title: item.title || '',
+              hours: Number(item.hours) || 0,
+              amount: Number(item.amount) || 0,
+            })),
+            totalAmount,
+          }),
+        });
+        if (!pdfResponse.ok) {
+          throw new Error(`PDF generation failed with status ${pdfResponse.status}`);
+        }
+        const pdfBlob = await pdfResponse.blob();
         const storageRef = ref(storage, `maintenance_invoices/${invoiceRef.id}_${customerId}_${timestamp}_invoice.pdf`);
         await uploadBytes(storageRef, pdfBlob);
         const pdfUrl = await getDownloadURL(storageRef);
