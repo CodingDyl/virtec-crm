@@ -1,11 +1,101 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-space1: #050910;
+  --color-space2: #060a11;
+  --color-spaceAlt: #6fc2ff;
+  --color-spaceText: #edf4ff;
+  --color-spaceAccent: #8df6ff;
+  --color-bg_color: #050910;
+
+  --color-brand-cyan: #00f2fe;
+  --color-brand-blue: #4ea4ff;
+  --color-brand-sky: #6fc2ff;
+  --color-brand-bright: #35d7ff;
+  --color-brand-pink: #ff00e5;
+  --color-brand-dark: #0f0f0f;
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
   }
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility virtara-display {
+  font-family: var(--font-chakra), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+@utility virtara-body {
+  font-family: var(--font-sora), sans-serif;
+}
+
+@utility virtara-glass {
+  background: linear-gradient(
+    180deg,
+    rgba(237, 244, 255, 0.08) 0%,
+    rgba(237, 244, 255, 0.04) 100%
+  );
+  border: 1px solid rgba(141, 246, 255, 0.2);
+  backdrop-filter: blur(12px);
 }
 
 @layer base {
@@ -83,27 +173,6 @@
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
-  }
-}
-
-@layer components {
-  .virtara-display {
-    font-family: var(--font-chakra), sans-serif;
-    letter-spacing: -0.02em;
-  }
-
-  .virtara-body {
-    font-family: var(--font-sora), sans-serif;
-  }
-
-  .virtara-glass {
-    background: linear-gradient(
-      180deg,
-      rgba(237, 244, 255, 0.08) 0%,
-      rgba(237, 244, 255, 0.04) 100%
-    );
-    border: 1px solid rgba(141, 246, 255, 0.2);
-    backdrop-filter: blur(12px);
+    @apply outline-hidden ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
