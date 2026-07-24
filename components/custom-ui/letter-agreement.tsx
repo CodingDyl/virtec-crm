@@ -270,7 +270,7 @@ export default function LetterAgreement() {
                 mode="single"
                 selected={formData.date}
                 onSelect={(date) => date && setFormData({...formData, date})}
-                initialFocus
+                autoFocus
               />
             </PopoverContent>
           </Popover>
