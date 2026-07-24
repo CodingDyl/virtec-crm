@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Project } from '@/types/project';
 import { Customer } from '@/types/customer';
@@ -43,6 +43,17 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
     (q) => ((q as any).projectId ?? (q as any).project_id) === project.id && q.status === 'pending'
   ).length;
 
+  // When a project has tasks, its completion is driven by the Tasks tab.
+  const [hasTasks, setHasTasks] = useState(false);
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, 'project_tasks'), where('projectId', '==', project.id)),
+      (snap) => setHasTasks(snap.size > 0),
+      (err) => console.error('project_tasks count error', err)
+    );
+    return unsub;
+  }, [project.id]);
+
   // Re-sync the form whenever a different project is selected.
   useEffect(() => {
     setForm({
@@ -67,7 +78,8 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
         clientName: form.clientId ? (selected?.companyName ?? form.clientName) : '',
         status: form.status,
         amount: form.amount,
-        completion: form.completion,
+        // Tasks own completion when they exist — don't clobber it from this form.
+        ...(hasTasks ? {} : { completion: form.completion }),
         agreementStatus: form.agreementStatus,
       });
       await logActivity(
@@ -139,9 +151,11 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
             min="0"
             max="100"
             value={form.completion}
+            disabled={hasTasks}
             onChange={(e) => setForm((p) => ({ ...p, completion: Math.max(0, Math.min(100, Number(e.target.value))) }))}
-            className="bg-space1 border-spaceAccent text-spaceText"
+            className="bg-space1 border-spaceAccent text-spaceText disabled:opacity-60"
           />
+          {hasTasks && <p className="mt-1 text-xs text-spaceAlt/70">Synced from the Tasks tab</p>}
         </div>
         <div>
           <label className="text-sm text-spaceText">Agreement Status</label>

@@ -5,6 +5,8 @@ import { Customer } from '@/types/customer';
 import { OverviewTab } from './OverviewTab';
 import { DocumentsTab } from './DocumentsTab';
 import { QuotesTab } from './QuotesTab';
+import { DesignTab } from './DesignTab';
+import { TasksTab } from './TasksTab';
 
 export type WorkspaceTab = 'overview' | 'quotes' | 'documents' | 'design' | 'tasks';
 
@@ -59,11 +61,8 @@ export function ProjectWorkspace({ project, customers, activeTab, onTabChange }:
         {activeTab === 'overview' && <OverviewTab project={project} customers={customers} />}
         {activeTab === 'quotes' && <QuotesTab project={project} />}
         {activeTab === 'documents' && <DocumentsTab project={project} />}
-        {(activeTab === 'design' || activeTab === 'tasks') && (
-          <div className="flex h-full items-center justify-center text-center text-sm text-spaceAlt/60">
-            This tab arrives in a later phase.
-          </div>
-        )}
+        {activeTab === 'design' && <DesignTab project={project} />}
+        {activeTab === 'tasks' && <TasksTab project={project} />}
       </div>
     </div>
   );
