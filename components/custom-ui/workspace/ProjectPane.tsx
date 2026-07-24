@@ -47,6 +47,8 @@ export function ProjectPane({ customer, projects, selectedProjectId, onSelect, h
           projects.map((p) => (
             <button
               key={p.id}
+              type="button"
+              aria-current={p.id === selectedProjectId}
               onClick={() => onSelect(p.id)}
               className={`w-full rounded-lg border px-3 py-2 text-left transition ${
                 p.id === selectedProjectId

@@ -41,10 +41,13 @@ export function ProjectWorkspace({ project, customers, activeTab, onTabChange }:
         <p className="text-sm text-spaceAlt/80">{project.clientName}</p>
       </div>
 
-      <div className="flex flex-wrap gap-1 border-b border-spaceAccent/20 pb-2">
+      <div role="tablist" aria-label="Project sections" className="flex flex-wrap gap-1 border-b border-spaceAccent/20 pb-2">
         {TABS.map((t) => (
           <button
             key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={t.key === activeTab}
             onClick={() => onTabChange(t.key)}
             className={`rounded-md px-3 py-1.5 text-sm transition ${
               t.key === activeTab

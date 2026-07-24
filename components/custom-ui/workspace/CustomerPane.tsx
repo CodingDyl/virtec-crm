@@ -45,6 +45,8 @@ export function CustomerPane({ customers, selectedCustomerId, onSelect, onRefres
           filtered.map((c) => (
             <button
               key={c.id}
+              type="button"
+              aria-current={c.id === selectedCustomerId}
               onClick={() => c.id && onSelect(c.id)}
               className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
                 c.id === selectedCustomerId
