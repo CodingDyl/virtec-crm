@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/firebase/firebaseConfig';
+import { logActivity } from '@/lib/activity';
 import { Project } from '@/types/project';
 import { BusinessDocument, DOCUMENT_TYPE_LABELS } from '@/types/document';
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ export function DocumentsTab({ project }: DocumentsTabProps) {
       if (deleteTarget.type === 'agreement') {
         await updateDoc(doc(db, 'projects', project.id), { agreementUrl: null, agreementStatus: null });
       }
+      await logActivity('project', project.id, 'document', `Removed ${deleteTarget.type}: ${deleteTarget.name}`);
       toast.success('Document removed.');
       setDeleteTarget(null);
     } catch (error) {

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/firebase/firebaseConfig';
+import { logActivity } from '@/lib/activity';
 import { DocumentType } from '@/types/document';
 import { Project } from '@/types/project';
 import {
@@ -100,6 +101,7 @@ export function UploadDocumentModal({ project, trigger, onUploaded }: UploadDocu
         });
       }
 
+      await logActivity('project', project.id, docType, `Uploaded ${docType}: ${file.name}`);
       toast.success('Document uploaded successfully!');
       resetForm();
       setOpen(false);

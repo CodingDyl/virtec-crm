@@ -8,6 +8,10 @@ import { Customer } from '@/types/customer';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from 'react-toastify';
+import { useQuotes } from '@/contexts/DataContexts';
+import { logActivity } from '@/lib/activity';
+import { HealthBadges } from './HealthBadges';
+import { ActivityTimeline } from './ActivityTimeline';
 
 interface OverviewTabProps {
   project: Project;
@@ -33,6 +37,11 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
     agreementStatus: project.agreementStatus ?? 'pending',
   });
   const [saving, setSaving] = useState(false);
+  const { quotes } = useQuotes();
+
+  const pendingQuotes = quotes.filter(
+    (q) => ((q as any).projectId ?? (q as any).project_id) === project.id && q.status === 'pending'
+  ).length;
 
   // Re-sync the form whenever a different project is selected.
   useEffect(() => {
@@ -51,6 +60,7 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
     setSaving(true);
     try {
       const selected = customers.find((c) => c.id === form.clientId);
+      const statusChanged = form.status !== project.status;
       await updateDoc(doc(db, 'projects', project.id), {
         projectType: form.projectType,
         clientId: form.clientId,
@@ -60,6 +70,12 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
         completion: form.completion,
         agreementStatus: form.agreementStatus,
       });
+      await logActivity(
+        'project',
+        project.id,
+        'update',
+        statusChanged ? `Status changed to ${form.status}` : 'Project details updated'
+      );
       toast.success('Project updated.');
     } catch (error) {
       console.error('Error updating project:', error);
@@ -73,6 +89,8 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
 
   return (
     <div className="space-y-4">
+      <HealthBadges project={project} pendingQuotes={pendingQuotes} />
+
       <div>
         <label className="text-sm text-spaceText">Project Type</label>
         <Input
@@ -139,6 +157,11 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
       <Button onClick={handleSave} disabled={saving} className="w-full bg-spaceAccent hover:bg-spaceAlt text-spaceText">
         {saving ? 'Saving…' : 'Save changes'}
       </Button>
+
+      <div className="rounded-lg border border-spaceAccent/20 bg-space1/40 p-3">
+        <p className="mb-2 text-sm font-semibold text-spaceText">Activity</p>
+        <ActivityTimeline projectId={project.id} />
+      </div>
     </div>
   );
 }
