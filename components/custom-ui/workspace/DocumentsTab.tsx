@@ -28,7 +28,7 @@ export function DocumentsTab({ project }: DocumentsTabProps) {
     const unsub = onSnapshot(
       query(collection(db, 'documents'), where('linkedId', '==', project.id)),
       (snap) => {
-        setDocs(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as BusinessDocument[]);
+        setDocs(snap.docs.map((d) => ({ ...d.data(), id: d.id })) as BusinessDocument[]);
         setLoading(false);
       },
       (err) => { console.error('documents snapshot error', err); setLoading(false); }
@@ -77,7 +77,7 @@ export function DocumentsTab({ project }: DocumentsTabProps) {
               <div className="flex min-w-0 items-center gap-2">
                 <FileText className="h-4 w-4 shrink-0 text-spaceAccent" />
                 <span className="truncate text-sm text-spaceText">{d.name}</span>
-                <Badge variant="secondary" className="shrink-0 capitalize">{DOCUMENT_TYPE_LABELS[d.type]}</Badge>
+                <Badge variant="secondary" className="shrink-0 capitalize">{DOCUMENT_TYPE_LABELS[d.type] ?? d.type}</Badge>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <Button size="sm" variant="ghost" className="text-spaceAccent hover:text-spaceText" onClick={() => window.open(d.fileUrl, '_blank')}>

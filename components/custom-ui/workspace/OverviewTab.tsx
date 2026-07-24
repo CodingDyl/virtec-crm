@@ -54,7 +54,7 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
       await updateDoc(doc(db, 'projects', project.id), {
         projectType: form.projectType,
         clientId: form.clientId,
-        clientName: selected?.companyName ?? form.clientName,
+        clientName: form.clientId ? (selected?.companyName ?? form.clientName) : '',
         status: form.status,
         amount: form.amount,
         completion: form.completion,
@@ -121,7 +121,7 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
             min="0"
             max="100"
             value={form.completion}
-            onChange={(e) => setForm((p) => ({ ...p, completion: Number(e.target.value) }))}
+            onChange={(e) => setForm((p) => ({ ...p, completion: Math.max(0, Math.min(100, Number(e.target.value))) }))}
             className="bg-space1 border-spaceAccent text-spaceText"
           />
         </div>
