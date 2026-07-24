@@ -270,7 +270,7 @@ export default function OverviewSection() {
       {/* Header with refresh button */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-spaceText bg-gradient-to-r from-spaceAccent to-orange-400 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold text-spaceText bg-linear-to-r from-spaceAccent to-orange-400 bg-clip-text text-transparent">
             Business Overview
           </h2>
           <p className="text-spaceAlt mt-1">Real-time insights into your business performance</p>
@@ -292,7 +292,7 @@ export default function OverviewSection() {
       </div>
 
       {/* Quick Actions Panel */}
-      <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+      <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
         <CardHeader>
           <CardTitle className="text-spaceText">Quick Actions</CardTitle>
           <CardDescription className="text-spaceAlt">
@@ -336,7 +336,7 @@ export default function OverviewSection() {
       {/* Key Metrics Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Total Revenue Card */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Total Revenue</CardTitle>
             <div className="p-2 bg-spaceAccent/20 rounded-lg">
@@ -357,7 +357,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Active Projects Card */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Active Projects</CardTitle>
             <div className="p-2 bg-blue-500/20 rounded-lg">
@@ -376,7 +376,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Customer Growth Card */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Customer Growth</CardTitle>
             <div className="p-2 bg-green-500/20 rounded-lg">
@@ -395,7 +395,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Conversion Rate Card */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Conversion Rate</CardTitle>
             <div className="p-2 bg-purple-500/20 rounded-lg">
@@ -414,7 +414,7 @@ export default function OverviewSection() {
       {/* Secondary Metrics Row */}
       <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
         {/* Outstanding Invoices */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Outstanding</CardTitle>
           </CardHeader>
@@ -427,7 +427,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Maintenance Revenue */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Maintenance</CardTitle>
           </CardHeader>
@@ -440,7 +440,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Pending Quotes */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Pending Quotes</CardTitle>
           </CardHeader>
@@ -453,7 +453,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Overdue Invoices */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Overdue</CardTitle>
           </CardHeader>
@@ -466,7 +466,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Average Project Value */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Avg Project</CardTitle>
           </CardHeader>
@@ -479,7 +479,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Average Customer Value */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-spaceText/80">Avg Customer</CardTitle>
           </CardHeader>
@@ -495,7 +495,7 @@ export default function OverviewSection() {
       {/* Charts and Insights Section */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         {/* Revenue Chart */}
-        <Card className="col-span-4 bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="col-span-4 bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader>
             <CardTitle className="text-spaceText">Revenue Trends</CardTitle>
             <CardDescription className="text-spaceAlt">
@@ -540,7 +540,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Project Status Breakdown */}
-        <Card className="col-span-3 bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="col-span-3 bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader>
             <CardTitle className="text-spaceText">Project Status</CardTitle>
             <CardDescription className="text-spaceAlt">
@@ -600,7 +600,7 @@ export default function OverviewSection() {
       {/* Bottom Section */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Top Performing Customers */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader>
             <CardTitle className="text-spaceText">Top Performing Customers</CardTitle>
             <CardDescription className="text-spaceAlt">
@@ -641,7 +641,7 @@ export default function OverviewSection() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="bg-gradient-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-sm">
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader>
             <CardTitle className="text-spaceText">Recent Activity</CardTitle>
             <CardDescription className="text-spaceAlt">

@@ -83,7 +83,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
               id="projectType"
               value={formData.projectType}
               onChange={(e) => setFormData({...formData, projectType: e.target.value})}
-              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
+              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
             >
               <option value="">Select a project type</option>
               {projectTypes.map((type) => (
@@ -99,7 +99,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
               id="client"
               value={formData.clientId}
               onChange={(e) => setFormData({...formData, clientId: e.target.value})}
-              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
+              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
             >
               <option value="">Select a client</option>
               {customers.map((customer) => (
@@ -115,7 +115,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
               id="status"
               value={formData.status}
               onChange={(e) => setFormData({...formData, status: e.target.value})}
-              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
+              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
             >
               <option value="active">Active</option>
               <option value="completed">Completed</option>
@@ -140,7 +140,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
               id="completion"
               value={formData.completion}
               onChange={(e) => setFormData({...formData, completion: Number(e.target.value)})}
-              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
+              className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-spaceAccent focus:ring-offset-2"
             >
               <option value="0">0%</option>
               <option value="25">25%</option>

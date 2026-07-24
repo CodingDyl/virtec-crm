@@ -23,6 +23,8 @@ import { format } from 'date-fns'
 import { toast } from "sonner"
 import { Quantum } from 'ldrs/react'
 import 'ldrs/react/Quantum.css'
+import { usePagination } from '@/hooks/use-pagination'
+import { TablePagination } from './table-pagination'
 
 interface MaintenanceItem {
   title: string;
@@ -64,6 +66,10 @@ export default function MaintenanceTable() {
     message: ''
   });
   const [sendingEmail, setSendingEmail] = useState(false);
+
+  const {
+    page, setPage, pageSize, setPageSize, total, totalPages, pageItems, start, end,
+  } = usePagination(invoices, { resetKey: invoices.length });
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -420,7 +426,7 @@ export default function MaintenanceTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              invoices.map((invoice) => (
+              pageItems.map((invoice) => (
                 <TableRow key={invoice.id} className="hover:bg-space1">
                   <TableCell className="text-spaceText font-medium">
                     {invoice.invoiceNumber || `INV-${invoice.id.slice(0, 8).toUpperCase()}`}
@@ -499,6 +505,19 @@ export default function MaintenanceTable() {
             )}
           </TableBody>
         </Table>
+        {total > 0 && (
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            start={start}
+            end={end}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="invoices"
+          />
+        )}
       </div>
 
       <Dialog open={emailModalOpen} onOpenChange={setEmailModalOpen}>

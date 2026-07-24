@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Quantum } from 'ldrs/react';
 import 'ldrs/react/Quantum.css';
 import { Search } from 'lucide-react';
+import { usePagination } from "@/hooks/use-pagination";
+import { TablePagination } from "./table-pagination";
 
 export default function CustomersTable() {
   const { customers, isLoading, refreshData, lastUpdated } = useCustomers();
@@ -41,6 +43,10 @@ export default function CustomersTable() {
       return matchesSearch && matchesStatus;
     });
   }, [customers, searchTerm, statusFilter]);
+
+  const {
+    page, setPage, pageSize, setPageSize, total, totalPages, pageItems, start, end,
+  } = usePagination(filteredCustomers, { resetKey: `${searchTerm}|${statusFilter}` });
 
   const getLastUpdatedText = () => {
     if (!lastUpdated) return 'Never';
@@ -115,7 +121,7 @@ export default function CustomersTable() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-              className="h-10 rounded-xl border border-spaceAccent/35 bg-space1/85 px-3 text-sm text-spaceText focus:outline-none focus:ring-2 focus:ring-spaceAccent"
+              className="h-10 rounded-xl border border-spaceAccent/35 bg-space1/85 px-3 text-sm text-spaceText focus:outline-hidden focus:ring-2 focus:ring-spaceAccent"
             >
               <option value="all">All statuses</option>
               <option value="active">Active only</option>
@@ -151,7 +157,7 @@ export default function CustomersTable() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredCustomers.map((customer) => (
+                    pageItems.map((customer) => (
                       <TableRow
                         key={customer.id}
                         className="cursor-pointer hover:bg-space1/70"
@@ -172,6 +178,19 @@ export default function CustomersTable() {
                   )}
                 </TableBody>
               </Table>
+              {total > 0 && (
+                <TablePagination
+                  page={page}
+                  totalPages={totalPages}
+                  total={total}
+                  start={start}
+                  end={end}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                  itemLabel="customers"
+                />
+              )}
             </div>
           )}
         </CardContent>

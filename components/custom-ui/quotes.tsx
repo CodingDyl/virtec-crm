@@ -16,11 +16,17 @@ import { storage } from '@/firebase/firebaseConfig';
 import { useQuotes } from '@/contexts/DataContexts';
 import { Quantum } from 'ldrs/react';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
+import { usePagination } from '@/hooks/use-pagination';
+import { TablePagination } from './table-pagination';
 
 export default function Quotes() {
   const { quotes, isLoading, projectNames, lastUpdated, refreshData } = useQuotes();
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const {
+    page, setPage, pageSize, setPageSize, total, totalPages, pageItems, start, end,
+  } = usePagination(quotes, { resetKey: quotes.length });
 
   const getLastUpdatedText = () => {
     if (!lastUpdated) return 'Never';
@@ -246,6 +252,7 @@ export default function Quotes() {
           <p className="text-spaceText">Fetching quotes...</p>
         </div>
         ) : (
+          <div className="rounded-md border border-spaceAccent/25 overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -258,7 +265,7 @@ export default function Quotes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {quotes.map((quote) => (
+              {pageItems.map((quote) => (
                 <TableRow key={quote.id}>
                   <TableCell className="text-spaceText">
                     {format(toDate((quote as any).createdAt ?? quote.created_at) ?? new Date(), 'dd/MM/yyyy')}
@@ -305,6 +312,20 @@ export default function Quotes() {
               ))}
             </TableBody>
           </Table>
+          {total > 0 && (
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              start={start}
+              end={end}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="quotes"
+            />
+          )}
+          </div>
         )}
       </CardContent>
 
