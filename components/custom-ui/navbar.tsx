@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users, BarChart3, LogOut, FileText, Calculator, Mail, Lock } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, LogOut, FileText, Calculator, Mail, Lock } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import icon from '@/app/icon.png';
@@ -35,31 +35,23 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
           <div className="space-y-2 overflow-y-auto pr-1">
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'overview' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'overview' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('overview')}
             >
               <LayoutDashboard className="mr-2 h-4 w-4" />
               Overview
             </Button>
-            <Button 
-              variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'customers' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
-              onClick={() => setActiveTab('customers')}
+            <Button
+              variant="ghost"
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'workspace' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              onClick={() => setActiveTab('workspace')}
             >
-              <Users className="mr-2 h-4 w-4" />
-              Customers
+              <LayoutGrid className="mr-2 h-4 w-4" />
+              Workspace
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'projects' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
-              onClick={() => setActiveTab('projects')}
-            >
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Projects
-            </Button>
-            <Button 
-              variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'quotes' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'quotes' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('quotes')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -67,7 +59,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'maintenance-table' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'maintenance-table' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('maintenance-table')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -75,7 +67,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'subscriptions' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'subscriptions' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('subscriptions')}
             >
               <Mail className="mr-2 h-4 w-4" />
@@ -83,7 +75,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'passwords' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'passwords' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('passwords')}
             >
               <Lock className="mr-2 h-4 w-4" />
@@ -92,7 +84,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             <div className="my-2 h-px bg-spaceAccent/30" />
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'generate-quote' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'generate-quote' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('generate-quote')}
             >
               <Calculator className="mr-2 h-4 w-4" />
@@ -100,7 +92,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'letter-agreement' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'letter-agreement' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('letter-agreement')}
             >
               <FileText className="mr-2 h-4 w-4" />
@@ -108,7 +100,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </Button>
             <Button 
               variant="ghost" 
-              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'maintenance-invoice' ? 'border border-spaceAccent/40 bg-gradient-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'maintenance-invoice' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
               onClick={() => setActiveTab('maintenance-invoice')}
             >
               <FileText className="mr-2 h-4 w-4" />

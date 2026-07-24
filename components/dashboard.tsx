@@ -8,10 +8,7 @@ import dynamic from 'next/dynamic'
 const Navbar = dynamic(() => import('./custom-ui/navbar'), {
   loading: () => <div>Loading...</div>
 })
-const ProjectsTable = dynamic(() => import('./custom-ui/projects-table'), {
-  loading: () => <div>Loading...</div>
-})
-const CustomersTable = dynamic(() => import('./custom-ui/customers-table'), {
+const Workspace = dynamic(() => import('./custom-ui/workspace/Workspace'), {
   loading: () => <div>Loading...</div>
 })
 const OverviewSection = dynamic(() => import('./custom-ui/overview-section'), {
@@ -56,8 +53,7 @@ export function Dashboard() {
           <Tabs value={activeTab} className="space-y-4 pb-6">
             <TabsList className='h-auto w-full justify-start gap-1 overflow-x-auto whitespace-nowrap bg-space2/70 text-spaceText'>
               <TabsTrigger value="overview" onClick={() => setActiveTab('overview')}>Overview</TabsTrigger>
-              <TabsTrigger value="customers" onClick={() => setActiveTab('customers')}>Customers</TabsTrigger>
-              <TabsTrigger value="projects" onClick={() => setActiveTab('projects')}>Projects</TabsTrigger>
+              <TabsTrigger value="workspace" onClick={() => setActiveTab('workspace')}>Workspace</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')}>Quotes</TabsTrigger>
               <TabsTrigger value="maintenance-table" onClick={() => setActiveTab('maintenance-table')}>Maintenance Table</TabsTrigger>
               <TabsTrigger value="subscriptions" onClick={() => setActiveTab('subscriptions')}>Subscriptions</TabsTrigger>
@@ -69,11 +65,8 @@ export function Dashboard() {
             <TabsContent value="overview" className="space-y-4">
               <OverviewSection />
             </TabsContent>
-            <TabsContent value="customers" className="space-y-4">
-              <CustomersTable />
-            </TabsContent>
-            <TabsContent value="projects" className="space-y-4">
-              <ProjectsTable />
+            <TabsContent value="workspace" className="space-y-4">
+              <Workspace />
             </TabsContent>
             <TabsContent value="generate-quote" className="space-y-4">
               <GenerateQuote />
