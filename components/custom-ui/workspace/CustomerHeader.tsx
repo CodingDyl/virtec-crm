@@ -2,26 +2,40 @@
 
 import { Customer } from '@/types/customer';
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, Building2 } from 'lucide-react';
+import { Mail, Phone, Building2, Trash2 } from 'lucide-react';
 
 interface CustomerHeaderProps {
   customer: Customer;
   projectCount: number;
   activeCount: number;
   outstandingQuoteCount: number;
+  onDelete: () => void;
 }
 
-export function CustomerHeader({ customer, projectCount, activeCount, outstandingQuoteCount }: CustomerHeaderProps) {
+export function CustomerHeader({ customer, projectCount, activeCount, outstandingQuoteCount, onDelete }: CustomerHeaderProps) {
+  const displayName = customer.companyName || customer.name;
+
   return (
     <div className="rounded-xl border border-spaceAccent/30 bg-space1/60 p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-spaceText">{customer.companyName || customer.name}</p>
+          <p className="truncate text-base font-semibold text-spaceText">{displayName}</p>
           <p className="truncate text-sm text-spaceAlt/80">{customer.name}</p>
         </div>
-        <Badge variant={customer.status ? 'default' : 'secondary'}>
-          {customer.status ? 'Active' : 'Inactive'}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-1">
+          <Badge variant={customer.status ? 'default' : 'secondary'}>
+            {customer.status ? 'Active' : 'Inactive'}
+          </Badge>
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete customer ${displayName}`}
+            title="Delete customer"
+            className="rounded-md p-1.5 text-spaceAlt/70 transition-colors duration-150 hover:bg-red-500/15 hover:text-red-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-400"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">

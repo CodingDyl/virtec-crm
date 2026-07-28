@@ -4,10 +4,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { useCustomers, useProjects, useQuotes } from '@/contexts/DataContexts';
 import { Quantum } from 'ldrs/react';
 import 'ldrs/react/Quantum.css';
+import { toast } from 'sonner';
 import { CustomerPane } from './CustomerPane';
 import { CustomerHeader } from './CustomerHeader';
 import { ProjectPane } from './ProjectPane';
 import { ProjectWorkspace, WorkspaceTab } from './ProjectWorkspace';
+import { DeleteEntityDialog } from '../delete-entity-dialog';
+import {
+  deleteCustomerCascade,
+  deleteProjectCascade,
+  getCustomerDeletionImpact,
+  getProjectDeletionImpact,
+} from '@/lib/cascade-delete';
 
 export default function Workspace() {
   const { customers, isLoading: customersLoading, refreshData: refreshCustomers } = useCustomers();
@@ -17,6 +25,8 @@ export default function Workspace() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview');
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
+  const [deletingProject, setDeletingProject] = useState(false);
 
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === selectedCustomerId) ?? null,
@@ -47,6 +57,37 @@ export default function Workspace() {
     setSelectedProjectId(null);
     setActiveTab('overview');
   }, [selectedCustomerId]);
+
+  const handleDeleteCustomer = async () => {
+    if (!selectedCustomer?.id) return;
+    const name = selectedCustomer.companyName || selectedCustomer.name;
+    try {
+      await deleteCustomerCascade(selectedCustomer.id);
+      // Drop the selection before the snapshot arrives so no pane renders a ghost.
+      setSelectedProjectId(null);
+      setSelectedCustomerId(null);
+      toast.success(`${name} deleted.`);
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Could not delete the customer. Nothing was removed.');
+      throw error;
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!selectedProject) return;
+    const name = selectedProject.projectType;
+    try {
+      await deleteProjectCascade(selectedProject.id, selectedProject.agreementUrl);
+      setSelectedProjectId(null);
+      setActiveTab('overview');
+      toast.success(`${name} deleted.`);
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Could not delete the project. Nothing was removed.');
+      throw error;
+    }
+  };
 
   if (customersLoading) {
     return (
@@ -82,6 +123,7 @@ export default function Workspace() {
                 projectCount={customerProjects.length}
                 activeCount={customerProjects.filter((p) => p.status === 'active').length}
                 outstandingQuoteCount={outstandingQuoteCount}
+                onDelete={() => setDeletingCustomer(true)}
               />
             ) : null
           }
@@ -94,8 +136,31 @@ export default function Workspace() {
           customers={customers}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          onDeleteProject={() => setDeletingProject(true)}
         />
       </div>
+
+      {selectedCustomer?.id && (
+        <DeleteEntityDialog
+          open={deletingCustomer}
+          onOpenChange={setDeletingCustomer}
+          entityLabel="customer"
+          entityName={selectedCustomer.companyName || selectedCustomer.name}
+          loadImpact={() => getCustomerDeletionImpact(selectedCustomer.id!)}
+          onConfirm={handleDeleteCustomer}
+        />
+      )}
+
+      {selectedProject && (
+        <DeleteEntityDialog
+          open={deletingProject}
+          onOpenChange={setDeletingProject}
+          entityLabel="project"
+          entityName={selectedProject.projectType}
+          loadImpact={() => getProjectDeletionImpact(selectedProject.id, selectedProject.agreementUrl)}
+          onConfirm={handleDeleteProject}
+        />
+      )}
     </div>
   );
 }
