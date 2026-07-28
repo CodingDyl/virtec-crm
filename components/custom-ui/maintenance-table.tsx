@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
-import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { useMemo, useState } from 'react'
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
+import { useCustomers, useMaintenanceInvoices, useProjects } from '@/contexts/DataContexts'
+import { MaintenanceInvoice } from '@/types/maintenance'
+import { invoiceLabel } from '@/lib/maintenance'
 import {
   Table,
   TableBody,
@@ -26,36 +29,12 @@ import 'ldrs/react/Quantum.css'
 import { usePagination } from '@/hooks/use-pagination'
 import { TablePagination } from './table-pagination'
 
-interface MaintenanceItem {
-  title: string;
-  hours: number;
-  amount: number;
-}
-
-interface MaintenanceInvoice {
-  id: string;
-  invoiceNumber?: string;
-  projectId: string;
-  clientId: string;
-  company: string;
-  date: any; // Firestore Timestamp
-  hourlyRate: number;
-  items: MaintenanceItem[];
-  totalAmount: number;
-  pdfUrl: string;
-  status: string;
-}
-
-interface Client {
-  name: string;
-  companyName: string;
-  email: string;
-}
+type MaintenanceItem = MaintenanceInvoice['items'][number];
 
 export default function MaintenanceTable() {
-  const [invoices, setInvoices] = useState<MaintenanceInvoice[]>([]);
-  const [clients, setClients] = useState<Record<string, Client>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const { invoices, isLoading } = useMaintenanceInvoices();
+  const { customers } = useCustomers();
+  const { projects } = useProjects();
   const [updatingInvoice, setUpdatingInvoice] = useState<string | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<MaintenanceInvoice | null>(null);
@@ -71,39 +50,20 @@ export default function MaintenanceTable() {
     page, setPage, pageSize, setPageSize, total, totalPages, pageItems, start, end,
   } = usePagination(invoices, { resetKey: invoices.length });
 
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        const q = query(collection(db, "maintenance_invoices"), orderBy("date", "desc"));
-        const querySnapshot = await getDocs(q);
-        const invoicesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as MaintenanceInvoice[];
-        setInvoices(invoicesData);
+  const clients = useMemo(() => {
+    const map: Record<string, { name: string; companyName: string; email: string }> = {};
+    customers.forEach((c) => {
+      if (c.id) map[c.id] = { name: c.name, companyName: c.companyName, email: c.email };
+    });
+    return map;
+  }, [customers]);
 
-        // Fetch client data for all invoices
-        const clientIds = Array.from(new Set(invoicesData.map(invoice => invoice.clientId)));
-        const clientsData: Record<string, Client> = {};
-        
-        for (const clientId of clientIds) {
-          const clientDoc = await getDoc(doc(db, "customers", clientId));
-          if (clientDoc.exists()) {
-            clientsData[clientId] = clientDoc.data() as Client;
-          }
-        }
-        
-        setClients(clientsData);
-      } catch (error) {
-        console.error("Error fetching maintenance invoices:", error);
-        toast.error("Failed to load maintenance invoices");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchInvoices();
-  }, []);
+  /** Which maintenance project each invoice bills against, where one is linked. */
+  const projectNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    projects.forEach((p) => { map[p.id] = p.projectType || 'Project'; });
+    return map;
+  }, [projects]);
 
   const setStatus = (status: string) => {
     if (status === 'paid') {
@@ -168,16 +128,7 @@ export default function MaintenanceTable() {
       await updateDoc(invoiceRef, {
         status: 'paid'
       });
-      
-      // Update the local state to reflect the change
-      setInvoices(prevInvoices => 
-        prevInvoices.map(invoice => 
-          invoice.id === invoiceId 
-            ? { ...invoice, status: 'paid' }
-            : invoice
-        )
-      );
-      
+
       toast.success("Invoice marked as paid successfully!");
     } catch (error) {
       console.error("Error marking invoice as paid:", error);
@@ -191,7 +142,6 @@ export default function MaintenanceTable() {
     try {
       const invoiceRef = doc(db, "maintenance_invoices", invoiceId);
       await deleteDoc(invoiceRef);
-      setInvoices(prevInvoices => prevInvoices.filter(invoice => invoice.id !== invoiceId));
       toast.success("Invoice deleted successfully!");
     } catch (error) {
       console.error("Error deleting invoice:", error);
@@ -207,18 +157,18 @@ export default function MaintenanceTable() {
     if (!client) return;
     
     setSelectedInvoice(invoice);
-    const invoiceLabel = invoice.invoiceNumber || `INV-${invoice.id.slice(0, 8).toUpperCase()}`;
+    const label = invoiceLabel(invoice);
     
     // Different message for re-sending vs first time
     const isResending = invoice.status === 'emailed';
     const message = isResending 
-      ? `Dear ${client.name},\n\nPlease find attached maintenance invoice ${invoiceLabel} for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nIf you have already received this invoice, please disregard this duplicate.\n\nThank you for your business.\n\nBest regards,\nVirtara Team`
-      : `Dear ${client.name},\n\nPlease find attached maintenance invoice ${invoiceLabel} for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nThank you for your business.\n\nBest regards,\nVirtara Team`;
+      ? `Dear ${client.name},\n\nPlease find attached maintenance invoice ${label} for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nIf you have already received this invoice, please disregard this duplicate.\n\nThank you for your business.\n\nBest regards,\nVirtara Team`
+      : `Dear ${client.name},\n\nPlease find attached maintenance invoice ${label} for ${format(invoice.date.toDate(), 'MMMM dd, yyyy')}.\n\nTotal Amount: R${invoice.totalAmount.toLocaleString()}\n\nThank you for your business.\n\nBest regards,\nVirtara Team`;
     
     setEmailForm({
       toEmail: client.email,
       ccEmail: '',
-      subject: `Invoice ${invoiceLabel} - ${format(invoice.date.toDate(), 'MMM dd, yyyy')}`,
+      subject: `Invoice ${label} - ${format(invoice.date.toDate(), 'MMM dd, yyyy')}`,
       message: message
     });
     setEmailModalOpen(true);
@@ -256,7 +206,7 @@ export default function MaintenanceTable() {
           subject: emailForm.subject.trim(),
           message: emailForm.message.trim(),
           invoiceId: selectedInvoice.id,
-          invoiceNumber: selectedInvoice.invoiceNumber || `INV-${selectedInvoice.id.slice(0, 8).toUpperCase()}`,
+          invoiceNumber: invoiceLabel(selectedInvoice),
           pdfUrl: selectedInvoice.pdfUrl,
           clientName: clients[selectedInvoice.clientId]?.name || 'Unknown Client'
         }),
@@ -271,16 +221,7 @@ export default function MaintenanceTable() {
       await updateDoc(invoiceRef, {
         status: 'emailed'
       });
-      
-      // Update local state
-      setInvoices(prevInvoices => 
-        prevInvoices.map(invoice => 
-          invoice.id === selectedInvoice.id 
-            ? { ...invoice, status: 'emailed' }
-            : invoice
-        )
-      );
-      
+
       setEmailModalOpen(false);
       setSelectedInvoice(null);
       setEmailForm({
@@ -410,6 +351,7 @@ export default function MaintenanceTable() {
               <TableHead className="text-spaceText">Invoice #</TableHead>
               <TableHead className="text-spaceText">Date</TableHead>
               <TableHead className="text-spaceText">Client</TableHead>
+              <TableHead className="text-spaceText">Project</TableHead>
               <TableHead className="text-spaceText">Email</TableHead>
               <TableHead className="text-spaceText">Items</TableHead>
               <TableHead className="text-spaceText">Hours</TableHead>
@@ -421,7 +363,7 @@ export default function MaintenanceTable() {
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-spaceText py-8">
+                <TableCell colSpan={10} className="text-center text-spaceText py-8">
                   No maintenance invoices found
                 </TableCell>
               </TableRow>
@@ -429,13 +371,22 @@ export default function MaintenanceTable() {
               pageItems.map((invoice) => (
                 <TableRow key={invoice.id} className="hover:bg-space1">
                   <TableCell className="text-spaceText font-medium">
-                    {invoice.invoiceNumber || `INV-${invoice.id.slice(0, 8).toUpperCase()}`}
+                    {invoiceLabel(invoice)}
                   </TableCell>
                   <TableCell className="text-spaceText">
                     {formatDate(invoice.date)}
                   </TableCell>
                   <TableCell className="text-spaceText">
                     {clients[invoice.clientId]?.name || 'Unknown Client'}
+                  </TableCell>
+                  <TableCell>
+                    {invoice.projectId && projectNames[invoice.projectId] ? (
+                      <span className="text-spaceText">{projectNames[invoice.projectId]}</span>
+                    ) : (
+                      <span className="text-yellow-500/90" title="Not billed against a maintenance project">
+                        Unlinked
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-spaceText">
                     {clients[invoice.clientId]?.email || 'Unknown Email'}

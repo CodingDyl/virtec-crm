@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp, runTransaction } from 'firebase/firestore'
 import { db, storage } from '@/firebase/firebaseConfig'
 import { Customer } from '@/types/customer'
+import { Project } from '@/types/project'
+import { frequencyLabel, isMaintenanceProject } from '@/lib/maintenance'
+import { logActivity } from '@/lib/activity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -31,11 +34,25 @@ interface MaintenanceInvoiceData {
   invoiceNumber?: string;
 }
 
+/**
+ * One row you can bill. Normally a maintenance project, so the invoice attaches
+ * to it — that link is what lets a project accumulate a cycle's worth of
+ * invoices. Customers flagged for maintenance but without a maintenance project
+ * still appear, so no existing billing workflow breaks; their invoices land
+ * unattached and can be linked from the project's Maintenance tab later.
+ */
+interface BillingTarget {
+  key: string;
+  customer: Customer;
+  projectId: string;
+  projectLabel: string | null;
+  cadence: string | null;
+}
+
 export default function MaintenanceInvoice() {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [maintenanceProjectCustomerIds, setMaintenanceProjectCustomerIds] = useState<Set<string>>(new Set());
-  const [maintenanceProjectClientNames, setMaintenanceProjectClientNames] = useState<Set<string>>(new Set());
-  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [formData, setFormData] = useState<MaintenanceInvoiceData>({
     clientId: '',
     company: 'Virtara',
@@ -79,30 +96,15 @@ export default function MaintenanceInvoice() {
           getDocs(collection(db, "projects")),
         ]);
 
-        const customersData = customersSnapshot.docs.map((doc) => ({
+        setCustomers(customersSnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-        })) as Customer[];
+        })) as Customer[]);
 
-        const maintenanceCustomerIds = new Set<string>();
-        const maintenanceClientNames = new Set<string>();
-
-        projectsSnapshot.docs.forEach((projectDoc) => {
-          const project = projectDoc.data() as Record<string, any>;
-          const rawProjectType = (project.projectType ?? project.project_type ?? '').toString();
-          const isMaintenanceProject = rawProjectType.trim().toLowerCase() === 'maintenance';
-          if (!isMaintenanceProject) return;
-
-          const clientId = (project.clientId ?? project.client_id ?? '').toString().trim();
-          if (clientId) maintenanceCustomerIds.add(clientId);
-
-          const clientName = normalizeCompanyName((project.clientName ?? project.companyName ?? '').toString());
-          if (clientName) maintenanceClientNames.add(clientName);
-        });
-
-        setCustomers(customersData);
-        setMaintenanceProjectCustomerIds(maintenanceCustomerIds);
-        setMaintenanceProjectClientNames(maintenanceClientNames);
+        setProjects(projectsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Project[]);
       } finally {
         setIsLoading(false);
       }
@@ -110,15 +112,61 @@ export default function MaintenanceInvoice() {
     fetchCustomers();
   }, []);
 
-  const availableCustomers = customers.filter((customer) => {
-    const isActive = customer.status !== false;
-    const hasMaintenanceFlag = customer.maintenance === true;
-    const customerId = (customer.id || '').trim();
-    const companyName = normalizeCompanyName(customer.companyName);
-    const hasMaintenanceProject = maintenanceProjectCustomerIds.has(customerId) || maintenanceProjectClientNames.has(companyName);
+  const { linkedTargets, unlinkedTargets } = useMemo(() => {
+    const activeCustomers = customers.filter((c) => c.status !== false);
+    const byId = new Map(activeCustomers.map((c) => [(c.id || '').trim(), c]));
+    // Older projects carry only a client name, so fall back to matching on that.
+    const byCompany = new Map(
+      activeCustomers.map((c) => [normalizeCompanyName(c.companyName), c])
+    );
 
-    return isActive && (hasMaintenanceFlag || hasMaintenanceProject);
-  });
+    const linked: BillingTarget[] = [];
+    const covered = new Set<string>();
+
+    projects.filter(isMaintenanceProject).forEach((project) => {
+      const clientId = (project.clientId ?? '').toString().trim();
+      const customer =
+        byId.get(clientId) ??
+        byCompany.get(normalizeCompanyName(project.clientName ?? ''));
+      if (!customer?.id) return;
+
+      covered.add(customer.id);
+      linked.push({
+        key: project.id,
+        customer,
+        projectId: project.id,
+        projectLabel: project.projectType || 'Maintenance',
+        cadence: project.maintenanceFrequency ? frequencyLabel(project.maintenanceFrequency) : null,
+      });
+    });
+
+    linked.sort((a, b) =>
+      (a.customer.companyName || a.customer.name || '').localeCompare(
+        b.customer.companyName || b.customer.name || ''
+      )
+    );
+
+    const unlinked: BillingTarget[] = activeCustomers
+      .filter((c) => c.maintenance === true && c.id && !covered.has(c.id))
+      .map((customer) => ({
+        key: `customer:${customer.id}`,
+        customer,
+        projectId: '',
+        projectLabel: null,
+        cadence: null,
+      }));
+
+    return { linkedTargets: linked, unlinkedTargets: unlinked };
+  }, [customers, projects]);
+
+  const allTargets = useMemo(
+    () => [...linkedTargets, ...unlinkedTargets],
+    [linkedTargets, unlinkedTargets]
+  );
+
+  const toggleTarget = (key: string, checked: boolean) => {
+    setSelectedKeys((prev) => (checked ? [...prev, key] : prev.filter((k) => k !== key)));
+  };
 
   const calculateTotal = () => {
     return formData.items.reduce((sum, item) => sum + item.amount, 0);
@@ -165,8 +213,9 @@ export default function MaintenanceInvoice() {
   };
 
   const generateInvoice = async () => {
-    if (selectedCustomerIds.length === 0) {
-      toast.error("Select at least one customer.");
+    const targets = allTargets.filter((t) => selectedKeys.includes(t.key));
+    if (targets.length === 0) {
+      toast.error("Select at least one maintenance project or customer.");
       return;
     }
 
@@ -184,13 +233,14 @@ export default function MaintenanceInvoice() {
       const failedCustomers: string[] = [];
       let generatedCount = 0;
 
-      for (const customerId of selectedCustomerIds) {
+      for (const target of targets) {
+        const customerId = target.customer.id as string;
         const clientDoc = await getDoc(doc(db, "customers", customerId));
         if (!clientDoc.exists()) {
           failedCustomers.push(customerId);
           continue;
         }
-        
+
         const customerData = clientDoc.data() as Customer;
         const invoiceRef = doc(collection(db, "maintenance_invoices"));
         const invoiceNumber = await generateInvoiceNumber();
@@ -225,7 +275,7 @@ export default function MaintenanceInvoice() {
 
         await setDoc(invoiceRef, {
           invoiceNumber,
-          projectId: '',
+          projectId: target.projectId,
           clientId: customerId,
           company: formData.company,
           date: serverTimestamp(),
@@ -236,10 +286,20 @@ export default function MaintenanceInvoice() {
           status: 'pending'
         });
 
+        if (target.projectId) {
+          await logActivity(
+            'project',
+            target.projectId,
+            'maintenance',
+            `Maintenance invoice ${invoiceNumber} raised — R${totalAmount.toLocaleString()}`
+          );
+        }
+
         generatedCount += 1;
       }
 
       if (generatedCount > 0) {
+        setSelectedKeys([]);
         toast.success(`Generated ${generatedCount} maintenance invoice${generatedCount > 1 ? 's' : ''}.`);
       }
       if (failedCustomers.length > 0) {
@@ -281,8 +341,8 @@ export default function MaintenanceInvoice() {
             <p className="text-xl font-semibold text-spaceText">{formData.items.length}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-spaceAlt/80">Customers</p>
-            <p className="text-xl font-semibold text-spaceText">{selectedCustomerIds.length}</p>
+            <p className="text-xs uppercase tracking-wide text-spaceAlt/80">Selected</p>
+            <p className="text-xl font-semibold text-spaceText">{selectedKeys.length}</p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-spaceAlt/80">Total Hours</p>
@@ -296,35 +356,78 @@ export default function MaintenanceInvoice() {
           </div>
         </div>
 
-        {/* Customer Selection */}
+        {/* Billing target selection — a maintenance project wherever one exists */}
         <div className="space-y-2">
-          <Label className="text-spaceText">Customers (Maintenance)</Label>
-          <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border border-spaceAccent bg-space1 p-3">
-            {availableCustomers.length === 0 ? (
-              <p className="text-sm text-spaceAlt">No active maintenance customers found.</p>
+          <Label className="text-spaceText">Bill to</Label>
+          <div className="max-h-64 space-y-3 overflow-y-auto rounded-md border border-spaceAccent bg-space1 p-3">
+            {allTargets.length === 0 ? (
+              <p className="text-sm text-spaceAlt">
+                No active maintenance customers found. Flag a customer for maintenance, or give them
+                a project of type “Maintenance”.
+              </p>
             ) : (
-              availableCustomers.map((customer) => {
-                const customerId = customer.id || '';
-                return (
-                  <label key={customerId} className="flex cursor-pointer items-start gap-3 rounded-md border border-spaceAccent/20 bg-space2/50 p-2">
-                    <Checkbox
-                      checked={selectedCustomerIds.includes(customerId)}
-                      onCheckedChange={(checked) => {
-                        if (!customerId) return;
-                        setSelectedCustomerIds((prev) =>
-                          checked
-                            ? [...prev, customerId]
-                            : prev.filter((id) => id !== customerId)
-                        );
-                      }}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-spaceText">{customer.companyName}</p>
-                      <p className="text-xs text-spaceAlt">{customer.name} · {customer.email}</p>
-                    </div>
-                  </label>
-                );
-              })
+              <>
+                {linkedTargets.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-wide text-spaceAlt/70">
+                      Maintenance projects
+                    </p>
+                    {linkedTargets.map((target) => (
+                      <label
+                        key={target.key}
+                        className="flex cursor-pointer items-start gap-3 rounded-md border border-spaceAccent/20 bg-space2/50 p-2"
+                      >
+                        <Checkbox
+                          checked={selectedKeys.includes(target.key)}
+                          onCheckedChange={(checked) => toggleTarget(target.key, checked === true)}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium text-spaceText">
+                              {target.customer.companyName || target.customer.name}
+                            </p>
+                            {target.cadence && (
+                              <span className="rounded-full border border-spaceAccent/30 px-2 py-0.5 text-[10px] text-spaceAlt/90">
+                                {target.cadence}
+                              </span>
+                            )}
+                          </div>
+                          <p className="truncate text-xs text-spaceAlt">
+                            {target.projectLabel} · {target.customer.email}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {unlinkedTargets.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-wide text-yellow-300/80">
+                      No maintenance project — invoice won&apos;t be tracked against one
+                    </p>
+                    {unlinkedTargets.map((target) => (
+                      <label
+                        key={target.key}
+                        className="flex cursor-pointer items-start gap-3 rounded-md border border-yellow-500/25 bg-yellow-500/5 p-2"
+                      >
+                        <Checkbox
+                          checked={selectedKeys.includes(target.key)}
+                          onCheckedChange={(checked) => toggleTarget(target.key, checked === true)}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-spaceText">
+                            {target.customer.companyName || target.customer.name}
+                          </p>
+                          <p className="truncate text-xs text-spaceAlt">
+                            {target.customer.name} · {target.customer.email}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -422,7 +525,7 @@ export default function MaintenanceInvoice() {
         <Button 
           className="w-full bg-spaceAccent text-space1 hover:bg-spaceAlt z-50"
           onClick={generateInvoice}
-          disabled={selectedCustomerIds.length === 0 || isGenerating}
+          disabled={selectedKeys.length === 0 || isGenerating}
         >
           {isGenerating ? "Generating Invoices..." : "Generate Invoices"}
         </Button>

@@ -7,8 +7,10 @@ import { Customer } from '@/types/customer';
 import { Project } from '@/types/project';
 import { Quote } from '@/types/quote';
 import { Expense } from '@/types/expense';
+import { MaintenanceInvoice } from '@/types/maintenance';
 import { normalizeQuote, pickNumber, toDate } from '@/lib/firestore-schema';
 import { normalizeExpense } from '@/lib/expenses';
+import { normalizeMaintenanceInvoice } from '@/lib/maintenance';
 
 // Quotes Context
 interface QuotesContextType {
@@ -275,6 +277,63 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
 export function useExpenses() {
   const context = useContext(ExpensesContext);
   if (!context) throw new Error('useExpenses must be used within ExpensesProvider');
+  return context;
+}
+
+// Maintenance Invoices Context
+interface MaintenanceInvoicesContextType {
+  invoices: MaintenanceInvoice[];
+  isLoading: boolean;
+  refreshData: () => Promise<void>;
+  lastUpdated: Date | null;
+}
+
+const MaintenanceInvoicesContext = createContext<MaintenanceInvoicesContextType | undefined>(undefined);
+
+/**
+ * Maintenance invoices are read from two places at once — the Maintenance Table
+ * and each maintenance project's workspace tab — so they live in one realtime
+ * subscription. Marking an invoice paid anywhere updates every total on screen.
+ */
+export function MaintenanceInvoicesProvider({ children }: { children: React.ReactNode }) {
+  const [invoices, setInvoices] = useState<MaintenanceInvoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  useEffect(() => {
+    // No orderBy in the query (avoids an index); newest-first sorting is client-side.
+    const unsubscribe = onSnapshot(
+      collection(db, 'maintenance_invoices'),
+      (snapshot) => {
+        const rows = snapshot.docs.map((doc) => normalizeMaintenanceInvoice(doc.id, doc.data()));
+        rows.sort((a, b) => (toDate(b.date)?.getTime() ?? 0) - (toDate(a.date)?.getTime() ?? 0));
+        setInvoices(rows);
+        setLastUpdated(new Date());
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('maintenance_invoices snapshot error', error);
+        setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
+
+  return (
+    <MaintenanceInvoicesContext.Provider value={{ invoices, isLoading, refreshData, lastUpdated }}>
+      {children}
+    </MaintenanceInvoicesContext.Provider>
+  );
+}
+
+export function useMaintenanceInvoices() {
+  const context = useContext(MaintenanceInvoicesContext);
+  if (!context) throw new Error('useMaintenanceInvoices must be used within MaintenanceInvoicesProvider');
   return context;
 }
 

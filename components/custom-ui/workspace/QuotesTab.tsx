@@ -10,10 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UploadDocumentModal } from "../upload-document-modal";
 import { pickNumber, toDate } from '@/lib/firestore-schema';
+import { isMaintenanceProject } from '@/lib/maintenance';
 import { logActivity } from '@/lib/activity';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { FileText } from 'lucide-react';
+import { FileText, Info } from 'lucide-react';
 
 interface QuotesTabProps {
   project: Project;
@@ -30,10 +31,27 @@ function statusBadge(status: string) {
 export function QuotesTab({ project }: QuotesTabProps) {
   const { quotes } = useQuotes();
 
-  const projectQuotes = useMemo(
-    () => quotes.filter((q) => ((q as any).projectId ?? (q as any).project_id) === project.id),
-    [quotes, project.id]
-  );
+  const isMaintenance = isMaintenanceProject(project);
+
+  const projectQuotes = useMemo(() => {
+    const rows = quotes.filter((q) => ((q as any).projectId ?? (q as any).project_id) === project.id);
+    rows.sort(
+      (a, b) =>
+        (toDate((b as any).createdAt ?? b.created_at)?.getTime() ?? 0) -
+        (toDate((a as any).createdAt ?? a.created_at)?.getTime() ?? 0)
+    );
+    return rows;
+  }, [quotes, project.id]);
+
+  /**
+   * A project covers one scope and so normally carries one quote — the accepted
+   * one drives its value. Extra quotes are nearly always revisions, so they are
+   * flagged rather than blocked. Maintenance projects are the deliberate
+   * exception: they bill on a cycle, tracked in the Maintenance tab.
+   */
+  const primaryQuoteId =
+    projectQuotes.find((q) => q.status === 'accepted')?.id ?? projectQuotes[0]?.id;
+  const showRevisionNotice = !isMaintenance && projectQuotes.length > 1;
 
   const updateStatus = async (quote: Quote, status: 'pending' | 'accepted' | 'rejected') => {
     const amount = pickNumber(quote as any, ['totalAmount', 'total_amount'], 0);
@@ -59,6 +77,26 @@ export function QuotesTab({ project }: QuotesTabProps) {
         <UploadDocumentModal project={project} />
       </div>
 
+      {isMaintenance && (
+        <p className="flex items-start gap-2 rounded-lg border border-spaceAccent/25 bg-space1/50 p-2.5 text-xs text-spaceAlt/90">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            This is a maintenance project — recurring billing lives in the{' '}
+            <span className="text-spaceText">Maintenance</span> tab, one invoice per cycle.
+          </span>
+        </p>
+      )}
+
+      {showRevisionNotice && (
+        <p className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-2.5 text-xs text-yellow-200/90">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            {projectQuotes.length} quotes on one project. A project normally carries a single quote —
+            the accepted one sets its value, and the rest read as superseded revisions.
+          </span>
+        </p>
+      )}
+
       {projectQuotes.length === 0 ? (
         <p className="py-6 text-center text-sm text-spaceAlt/70">
           No quotes for this project yet. Use “Upload Document” → Quote to add one.
@@ -76,7 +114,18 @@ export function QuotesTab({ project }: QuotesTabProps) {
                     <p className="text-sm font-medium text-spaceText">R{amount.toLocaleString()}</p>
                     <p className="text-xs text-spaceAlt/70">{created ? format(created, 'dd MMM yyyy') : '—'}</p>
                   </div>
-                  <Badge className={`text-white capitalize ${statusBadge(quote.status)}`}>{quote.status}</Badge>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {showRevisionNotice && (
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
+                        quote.id === primaryQuoteId
+                          ? 'border-spaceAccent/50 text-spaceAccent'
+                          : 'border-spaceAlt/25 text-spaceAlt/60'
+                      }`}>
+                        {quote.id === primaryQuoteId ? 'Primary' : 'Superseded'}
+                      </span>
+                    )}
+                    <Badge className={`text-white capitalize ${statusBadge(quote.status)}`}>{quote.status}</Badge>
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {pdf && (

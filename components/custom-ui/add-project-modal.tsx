@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Customer } from '@/types/customer';
+import { MaintenanceFrequency } from '@/types/maintenance';
+import { DEFAULT_MAINTENANCE_FREQUENCY, MAINTENANCE_FREQUENCIES } from '@/lib/maintenance';
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -25,8 +27,12 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
     status: 'active',
     quoteId: '',
     amount: 0,
-    completion: 0
+    completion: 0,
+    maintenanceFrequency: DEFAULT_MAINTENANCE_FREQUENCY as MaintenanceFrequency,
+    maintenanceAmount: 0,
   });
+
+  const isMaintenance = formData.projectType === 'Maintenance';
 
   const projectTypes = [
     'Website Redesign',
@@ -55,8 +61,11 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
     e.preventDefault();
     try {
       const selectedCustomer = customers.find(c => c.id === formData.clientId);
+      const { maintenanceFrequency, maintenanceAmount, ...base } = formData;
       await addDoc(collection(db, "projects"), {
-        ...formData,
+        ...base,
+        // Only maintenance projects carry a billing cycle.
+        ...(isMaintenance ? { maintenanceFrequency, maintenanceAmount } : {}),
         clientName: selectedCustomer?.companyName,
         createdAt: serverTimestamp()
       });
@@ -109,6 +118,37 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
               ))}
             </select>
           </div>
+          {isMaintenance && (
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-spaceAccent/25 bg-space1/40 p-3">
+              <div className="col-span-2">
+                <p className="text-xs uppercase tracking-wide text-spaceAlt/80">Recurring billing</p>
+              </div>
+              <div>
+                <Label htmlFor="maintenanceFrequency">Payment frequency</Label>
+                <select
+                  id="maintenanceFrequency"
+                  value={formData.maintenanceFrequency}
+                  onChange={(e) => setFormData({ ...formData, maintenanceFrequency: e.target.value as MaintenanceFrequency })}
+                  className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText focus:outline-hidden focus:ring-2 focus:ring-spaceAccent"
+                >
+                  {MAINTENANCE_FREQUENCIES.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="maintenanceAmount">Amount per cycle (R)</Label>
+                <Input
+                  id="maintenanceAmount"
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.maintenanceAmount}
+                  onChange={(e) => setFormData({ ...formData, maintenanceAmount: e.target.value ? Number(e.target.value.replace(/[^0-9.]/g, '')) : 0 })}
+                  className="bg-space1 border-spaceAccent text-spaceText"
+                />
+              </div>
+            </div>
+          )}
           <div>
             <Label htmlFor="status">Status</Label>
             <select 

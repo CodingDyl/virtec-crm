@@ -8,9 +8,11 @@ import { QuotesTab } from './QuotesTab';
 import { DesignTab } from './DesignTab';
 import { TasksTab } from './TasksTab';
 import { ShareTab } from './ShareTab';
+import { MaintenanceTab } from './MaintenanceTab';
+import { isMaintenanceProject } from '@/lib/maintenance';
 import { Trash2 } from 'lucide-react';
 
-export type WorkspaceTab = 'overview' | 'quotes' | 'documents' | 'design' | 'tasks' | 'share';
+export type WorkspaceTab = 'overview' | 'maintenance' | 'quotes' | 'documents' | 'design' | 'tasks' | 'share';
 
 interface ProjectWorkspaceProps {
   project: Project | null;
@@ -20,14 +22,18 @@ interface ProjectWorkspaceProps {
   onDeleteProject: () => void;
 }
 
-const TABS: { key: WorkspaceTab; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'quotes', label: 'Quotes' },
-  { key: 'documents', label: 'Documents' },
-  { key: 'design', label: 'Design' },
-  { key: 'tasks', label: 'Tasks' },
-  { key: 'share', label: 'Share' },
-];
+/** Maintenance billing only applies to maintenance projects, so its tab only appears there. */
+function tabsFor(project: Project): { key: WorkspaceTab; label: string }[] {
+  return [
+    { key: 'overview' as const, label: 'Overview' },
+    ...(isMaintenanceProject(project) ? [{ key: 'maintenance' as const, label: 'Maintenance' }] : []),
+    { key: 'quotes' as const, label: 'Quotes' },
+    { key: 'documents' as const, label: 'Documents' },
+    { key: 'design' as const, label: 'Design' },
+    { key: 'tasks' as const, label: 'Tasks' },
+    { key: 'share' as const, label: 'Share' },
+  ];
+}
 
 export function ProjectWorkspace({ project, customers, activeTab, onTabChange, onDeleteProject }: ProjectWorkspaceProps) {
   if (!project) {
@@ -37,6 +43,11 @@ export function ProjectWorkspace({ project, customers, activeTab, onTabChange, o
       </div>
     );
   }
+
+  const tabs = tabsFor(project);
+  // Switching from a maintenance project to a normal one can leave the selection
+  // pointing at a tab that no longer exists — fall back rather than render blank.
+  const currentTab = tabs.some((t) => t.key === activeTab) ? activeTab : 'overview';
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -57,15 +68,15 @@ export function ProjectWorkspace({ project, customers, activeTab, onTabChange, o
       </div>
 
       <div role="tablist" aria-label="Project sections" className="flex flex-wrap gap-1 border-b border-spaceAccent/20 pb-2">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
             role="tab"
-            aria-selected={t.key === activeTab}
+            aria-selected={t.key === currentTab}
             onClick={() => onTabChange(t.key)}
             className={`rounded-md px-3 py-1.5 text-sm transition ${
-              t.key === activeTab
+              t.key === currentTab
                 ? 'bg-spaceAccent text-space1 font-medium'
                 : 'text-spaceAlt hover:bg-space1/70 hover:text-spaceText'
             }`}
@@ -76,12 +87,13 @@ export function ProjectWorkspace({ project, customers, activeTab, onTabChange, o
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        {activeTab === 'overview' && <OverviewTab project={project} customers={customers} />}
-        {activeTab === 'quotes' && <QuotesTab project={project} />}
-        {activeTab === 'documents' && <DocumentsTab project={project} />}
-        {activeTab === 'design' && <DesignTab project={project} />}
-        {activeTab === 'tasks' && <TasksTab project={project} />}
-        {activeTab === 'share' && <ShareTab project={project} />}
+        {currentTab === 'overview' && <OverviewTab project={project} customers={customers} />}
+        {currentTab === 'maintenance' && <MaintenanceTab project={project} />}
+        {currentTab === 'quotes' && <QuotesTab project={project} />}
+        {currentTab === 'documents' && <DocumentsTab project={project} />}
+        {currentTab === 'design' && <DesignTab project={project} />}
+        {currentTab === 'tasks' && <TasksTab project={project} />}
+        {currentTab === 'share' && <ShareTab project={project} />}
       </div>
     </div>
   );

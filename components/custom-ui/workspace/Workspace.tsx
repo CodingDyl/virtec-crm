@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react';
-import { useCustomers, useProjects, useQuotes } from '@/contexts/DataContexts';
+import { useCustomers, useMaintenanceInvoices, useProjects, useQuotes } from '@/contexts/DataContexts';
 import { Quantum } from 'ldrs/react';
 import 'ldrs/react/Quantum.css';
 import { toast } from 'sonner';
@@ -10,21 +10,29 @@ import { CustomerHeader } from './CustomerHeader';
 import { ProjectPane } from './ProjectPane';
 import { ProjectWorkspace, WorkspaceTab } from './ProjectWorkspace';
 import { DeleteEntityDialog } from '../delete-entity-dialog';
+import { EditCustomerModal } from '../edit-customer-modal';
 import {
   deleteCustomerCascade,
   deleteProjectCascade,
   getCustomerDeletionImpact,
   getProjectDeletionImpact,
 } from '@/lib/cascade-delete';
+import {
+  frequencyLabel,
+  isMaintenanceProject,
+  summariseMaintenance,
+} from '@/lib/maintenance';
 
 export default function Workspace() {
   const { customers, isLoading: customersLoading, refreshData: refreshCustomers } = useCustomers();
   const { projects, refreshData: refreshProjects } = useProjects();
   const { quotes } = useQuotes();
+  const { invoices: maintenanceInvoices } = useMaintenanceInvoices();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview');
+  const [editingCustomer, setEditingCustomer] = useState(false);
   const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [deletingProject, setDeletingProject] = useState(false);
 
@@ -51,6 +59,31 @@ export default function Workspace() {
       return ids.has(pid) && q.status === 'pending';
     }).length;
   }, [quotes, customerProjects]);
+
+  /**
+   * What this customer has paid in maintenance, lifetime. Counted from every
+   * invoice raised against them — including any not yet attached to a project —
+   * so the figure matches what they were actually billed.
+   */
+  const customerMaintenance = useMemo(() => {
+    if (!selectedCustomerId) return null;
+
+    const maintenanceProjects = customerProjects.filter(isMaintenanceProject);
+    const theirInvoices = maintenanceInvoices.filter((i) => i.clientId === selectedCustomerId);
+    if (maintenanceProjects.length === 0 && theirInvoices.length === 0) return null;
+
+    const cadences = new Set(
+      maintenanceProjects.map((p) => p.maintenanceFrequency).filter(Boolean)
+    );
+    const { totalPaid, outstanding } = summariseMaintenance(theirInvoices);
+
+    return {
+      totalPaid,
+      outstanding,
+      cadence:
+        cadences.size === 1 ? frequencyLabel([...cadences][0]) : cadences.size > 1 ? 'Mixed' : null,
+    };
+  }, [customerProjects, maintenanceInvoices, selectedCustomerId]);
 
   // Clear the project selection when switching customers.
   useEffect(() => {
@@ -123,6 +156,8 @@ export default function Workspace() {
                 projectCount={customerProjects.length}
                 activeCount={customerProjects.filter((p) => p.status === 'active').length}
                 outstandingQuoteCount={outstandingQuoteCount}
+                maintenance={customerMaintenance}
+                onEdit={() => setEditingCustomer(true)}
                 onDelete={() => setDeletingCustomer(true)}
               />
             ) : null
@@ -139,6 +174,15 @@ export default function Workspace() {
           onDeleteProject={() => setDeletingProject(true)}
         />
       </div>
+
+      {selectedCustomer?.id && (
+        <EditCustomerModal
+          customer={selectedCustomer}
+          open={editingCustomer}
+          onOpenChange={setEditingCustomer}
+          onSaved={refreshCustomers}
+        />
+      )}
 
       {selectedCustomer?.id && (
         <DeleteEntityDialog
