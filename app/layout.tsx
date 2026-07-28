@@ -2,14 +2,7 @@ import type { Metadata } from "next";
 import { Chakra_Petch, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'sonner'
-import { DashboardProvider } from "@/contexts/DashboardContext";
-import {
-  QuotesProvider,
-  ProjectsProvider,
-  CustomersProvider,
-  SubscriptionsProvider,
-  ExpensesProvider
-} from "@/contexts/DataContexts";
+import { CrmProviders } from "@/components/crm-providers";
 
 const chakraPetch = Chakra_Petch({
   subsets: ["latin"],
@@ -38,19 +31,7 @@ export default function RootLayout({
       <body
         className={`${chakraPetch.variable} ${sora.variable} antialiased`}
       >
-        <DashboardProvider>
-          <QuotesProvider>
-            <ProjectsProvider>
-              <CustomersProvider>
-                <SubscriptionsProvider>
-                  <ExpensesProvider>
-                    {children}
-                  </ExpensesProvider>
-                </SubscriptionsProvider>
-              </CustomersProvider>
-            </ProjectsProvider>
-          </QuotesProvider>
-        </DashboardProvider>
+        <CrmProviders>{children}</CrmProviders>
         <Toaster position="top-center" richColors />
       </body>
     </html>

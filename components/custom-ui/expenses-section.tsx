@@ -482,6 +482,12 @@ export default function ExpensesSection() {
                               {expense.billable && (
                                 <span className="ml-2 text-xs font-normal text-spaceAccent">rebilled</span>
                               )}
+                              {/* Surfaced so a mis-set flag is caught here, not at tax time. */}
+                              {!expense.taxDeductible && (
+                                <span className="ml-2 text-xs font-normal text-spaceAlt/70">
+                                  not deductible
+                                </span>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-0.5">

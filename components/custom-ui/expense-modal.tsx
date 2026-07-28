@@ -335,16 +335,27 @@ export function ExpenseModal({ open, onOpenChange, expense, defaultProjectId }: 
                 />
                 <span>Supplier charges VAT ({Math.round(VAT_RATE * 100)}%)</span>
               </label>
-              {form.vatable && (
-                <label className="flex items-start gap-2.5 text-sm text-spaceAlt/95">
-                  <Checkbox
-                    checked={form.vatIncluded}
-                    onCheckedChange={(checked) => set('vatIncluded', checked === true)}
-                    aria-label="Amount above already includes VAT"
-                  />
-                  <span>The amount above already includes VAT</span>
-                </label>
-              )}
+              {/*
+                Kept mounted rather than conditionally rendered: removing the row
+                shifts every checkbox below it up under the pointer, so the click
+                that switches VAT off lands on the next option.
+              */}
+              <label
+                className={`flex items-start gap-2.5 text-sm transition-opacity duration-150 ${
+                  form.vatable ? 'text-spaceAlt/95' : 'cursor-not-allowed text-spaceAlt/45'
+                }`}
+              >
+                <Checkbox
+                  checked={form.vatable && form.vatIncluded}
+                  disabled={!form.vatable}
+                  onCheckedChange={(checked) => set('vatIncluded', checked === true)}
+                  aria-label="Amount above already includes VAT"
+                />
+                <span>
+                  The amount above already includes VAT
+                  {!form.vatable && ' — not applicable'}
+                </span>
+              </label>
               <label className="flex items-start gap-2.5 text-sm text-spaceAlt/95">
                 <Checkbox
                   checked={form.taxDeductible}

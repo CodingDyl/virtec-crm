@@ -7,9 +7,10 @@ import { DocumentsTab } from './DocumentsTab';
 import { QuotesTab } from './QuotesTab';
 import { DesignTab } from './DesignTab';
 import { TasksTab } from './TasksTab';
+import { ShareTab } from './ShareTab';
 import { Trash2 } from 'lucide-react';
 
-export type WorkspaceTab = 'overview' | 'quotes' | 'documents' | 'design' | 'tasks';
+export type WorkspaceTab = 'overview' | 'quotes' | 'documents' | 'design' | 'tasks' | 'share';
 
 interface ProjectWorkspaceProps {
   project: Project | null;
@@ -25,6 +26,7 @@ const TABS: { key: WorkspaceTab; label: string }[] = [
   { key: 'documents', label: 'Documents' },
   { key: 'design', label: 'Design' },
   { key: 'tasks', label: 'Tasks' },
+  { key: 'share', label: 'Share' },
 ];
 
 export function ProjectWorkspace({ project, customers, activeTab, onTabChange, onDeleteProject }: ProjectWorkspaceProps) {
@@ -79,6 +81,7 @@ export function ProjectWorkspace({ project, customers, activeTab, onTabChange, o
         {activeTab === 'documents' && <DocumentsTab project={project} />}
         {activeTab === 'design' && <DesignTab project={project} />}
         {activeTab === 'tasks' && <TasksTab project={project} />}
+        {activeTab === 'share' && <ShareTab project={project} />}
       </div>
     </div>
   );
