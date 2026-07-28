@@ -3,11 +3,12 @@ import { Chakra_Petch, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'sonner'
 import { DashboardProvider } from "@/contexts/DashboardContext";
-import { 
-  QuotesProvider, 
-  ProjectsProvider, 
-  CustomersProvider, 
-  SubscriptionsProvider 
+import {
+  QuotesProvider,
+  ProjectsProvider,
+  CustomersProvider,
+  SubscriptionsProvider,
+  ExpensesProvider
 } from "@/contexts/DataContexts";
 
 const chakraPetch = Chakra_Petch({
@@ -42,7 +43,9 @@ export default function RootLayout({
             <ProjectsProvider>
               <CustomersProvider>
                 <SubscriptionsProvider>
-                  {children}
+                  <ExpensesProvider>
+                    {children}
+                  </ExpensesProvider>
                 </SubscriptionsProvider>
               </CustomersProvider>
             </ProjectsProvider>

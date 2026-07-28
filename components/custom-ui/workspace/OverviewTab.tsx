@@ -7,11 +7,12 @@ import { Project } from '@/types/project';
 import { Customer } from '@/types/customer';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { useQuotes } from '@/contexts/DataContexts';
 import { logActivity } from '@/lib/activity';
 import { HealthBadges } from './HealthBadges';
 import { ActivityTimeline } from './ActivityTimeline';
+import { ProjectMargin } from './ProjectMargin';
 
 interface OverviewTabProps {
   project: Project;
@@ -102,6 +103,8 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
   return (
     <div className="space-y-4">
       <HealthBadges project={project} pendingQuotes={pendingQuotes} />
+
+      <ProjectMargin project={project} />
 
       <div>
         <label className="text-sm text-spaceText">Project Type</label>

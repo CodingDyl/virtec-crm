@@ -20,6 +20,9 @@ const GenerateQuote = dynamic(() => import('./custom-ui/generate-quote'), {
 const Quotes = dynamic(() => import('./custom-ui/quotes'), {
   loading: () => <div>Loading...</div>
 })
+const ExpensesSection = dynamic(() => import('./custom-ui/expenses-section'), {
+  loading: () => <div>Loading...</div>
+})
 const Subscriptions = dynamic(() => import('./custom-ui/subcriptions'), {
   loading: () => <div>Loading...</div>
 })
@@ -55,6 +58,7 @@ export function Dashboard() {
               <TabsTrigger value="overview" onClick={() => setActiveTab('overview')}>Overview</TabsTrigger>
               <TabsTrigger value="workspace" onClick={() => setActiveTab('workspace')}>Workspace</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')}>Quotes</TabsTrigger>
+              <TabsTrigger value="expenses" onClick={() => setActiveTab('expenses')}>Expenses</TabsTrigger>
               <TabsTrigger value="maintenance-table" onClick={() => setActiveTab('maintenance-table')}>Maintenance Table</TabsTrigger>
               <TabsTrigger value="subscriptions" onClick={() => setActiveTab('subscriptions')}>Subscriptions</TabsTrigger>
               <TabsTrigger value="passwords" onClick={() => setActiveTab('passwords')}>Passwords</TabsTrigger>
@@ -76,6 +80,9 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="quotes" className="space-y-4">
               <Quotes />
+            </TabsContent>
+            <TabsContent value="expenses" className="space-y-4">
+              <ExpensesSection />
             </TabsContent>
             <TabsContent value="subscriptions" className="space-y-4">
               <Subscriptions />

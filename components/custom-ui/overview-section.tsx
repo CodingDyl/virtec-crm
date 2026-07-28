@@ -27,14 +27,16 @@ import {
   Download,
   Eye
 } from "lucide-react";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Line, LineChart, PieChart as RechartsPieChart, Pie, Cell, Tooltip } from "recharts";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Line, LineChart, PieChart as RechartsPieChart, Pie, Cell, Tooltip, Legend, CartesianGrid } from "recharts";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useCustomers } from "@/contexts/DataContexts";
 import { useProjects } from "@/contexts/DataContexts";
 import { useQuotes } from "@/contexts/DataContexts";
+import { useExpenses } from "@/contexts/DataContexts";
+import { formatZAR, monthlySpendSeries, monthlyEquivalent, grossAmount, isWithin, monthRange } from "@/lib/expenses";
 import { Quantum } from 'ldrs/react';
 import 'ldrs/react/Quantum.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
@@ -66,6 +68,7 @@ export default function OverviewSection() {
   const { customers } = useCustomers();
   const { projects } = useProjects();
   const { quotes } = useQuotes();
+  const { expenses } = useExpenses();
   const [enhancedData, setEnhancedData] = useState<EnhancedDashboardData>({
     totalRevenue: 0,
     monthlyRevenue: 0,
@@ -204,9 +207,9 @@ export default function OverviewSection() {
           }, {} as Record<string, number>);
 
           const projectStatusBreakdown = [
-            { name: 'Active', value: projectStatuses['active'] || 0, color: '#f9b17a' },
+            { name: 'Active', value: projectStatuses['active'] || 0, color: '#8df6ff' },
             { name: 'Completed', value: projectStatuses['completed'] || 0, color: '#4ade80' },
-            { name: 'Planning', value: projectStatuses['planning'] || 0, color: '#60a5fa' },
+            { name: 'Planning', value: projectStatuses['planning'] || 0, color: '#4ea4ff' },
             { name: 'On Hold', value: projectStatuses['on-hold'] || 0, color: '#fbbf24' }
           ].filter(status => status.value > 0); // Only show statuses that have projects
 
@@ -240,6 +243,36 @@ export default function OverviewSection() {
     }
   }, [dashboardData, isLoading, customers, projects, quotes]);
 
+  // Revenue on its own hides the business. Line the two series up month by month.
+  const profitSeries = useMemo(() => {
+    const spend = monthlySpendSeries(expenses, 6);
+    return (enhancedData.revenueData ?? []).map((month, index) => {
+      const expenseTotal = spend[index]?.total ?? 0;
+      return {
+        name: month.name,
+        revenue: month.total ?? 0,
+        expenses: expenseTotal,
+        profit: (month.total ?? 0) - expenseTotal,
+      };
+    });
+  }, [enhancedData.revenueData, expenses]);
+
+  const expenseSummary = useMemo(() => {
+    const thisMonth = monthRange();
+    const spentThisMonth = expenses
+      .filter((e) => isWithin(toDate(e.date), thisMonth.start, thisMonth.end))
+      .reduce((sum, e) => sum + grossAmount(e), 0);
+    const fixedMonthlyBurn = expenses.reduce((sum, e) => sum + monthlyEquivalent(e), 0);
+    const lastFull = profitSeries.at(-1);
+
+    return {
+      spentThisMonth,
+      fixedMonthlyBurn,
+      latestProfit: lastFull?.profit ?? 0,
+      latestMonthName: lastFull?.name ?? '',
+    };
+  }, [expenses, profitSeries]);
+
   // Format the last updated time
   const getLastUpdatedText = () => {
     if (!lastUpdated) return 'Never';
@@ -270,7 +303,7 @@ export default function OverviewSection() {
       {/* Header with refresh button */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-spaceText bg-linear-to-r from-spaceAccent to-orange-400 bg-clip-text text-transparent">
+          <h2 className="virtara-display text-3xl font-bold text-spaceText">
             Business Overview
           </h2>
           <p className="text-spaceAlt mt-1">Real-time insights into your business performance</p>
@@ -345,7 +378,7 @@ export default function OverviewSection() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-spaceText">
-              R {enhancedData.totalRevenue.toLocaleString()}
+              {formatZAR(enhancedData.totalRevenue)}
             </div>
             <div className="flex items-center mt-2">
               <TrendingUp className={`h-4 w-4 mr-1 ${enhancedData.revenueGrowth >= 0 ? 'text-green-400' : 'text-red-400'}`} />
@@ -412,7 +445,33 @@ export default function OverviewSection() {
       </div>
 
       {/* Secondary Metrics Row */}
-      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Spent This Month */}
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-spaceText/80">Spent This Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold tabular-nums text-spaceText">
+              {formatZAR(expenseSummary.spentThisMonth)}
+            </div>
+            <p className="text-xs text-spaceAlt mt-1">Money out the door</p>
+          </CardContent>
+        </Card>
+
+        {/* Fixed Monthly Burn */}
+        <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-spaceText/80">Fixed Burn</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold tabular-nums text-spaceAccent">
+              {formatZAR(expenseSummary.fixedMonthlyBurn)}
+            </div>
+            <p className="text-xs text-spaceAlt mt-1">Recurring, per month</p>
+          </CardContent>
+        </Card>
+
         {/* Outstanding Invoices */}
         <Card className="bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader className="pb-2">
@@ -420,7 +479,7 @@ export default function OverviewSection() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold text-red-400">
-              R {enhancedData.outstandingInvoices.toLocaleString()}
+              {formatZAR(enhancedData.outstandingInvoices)}
             </div>
             <p className="text-xs text-spaceAlt mt-1">Requires attention</p>
           </CardContent>
@@ -433,7 +492,7 @@ export default function OverviewSection() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold text-green-400">
-              R {enhancedData.maintenanceRevenue.toLocaleString()}
+              {formatZAR(enhancedData.maintenanceRevenue)}
             </div>
             <p className="text-xs text-spaceAlt mt-1">Recurring income</p>
           </CardContent>
@@ -472,7 +531,7 @@ export default function OverviewSection() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold text-spaceAccent">
-              R {enhancedData.avgProjectValue.toLocaleString()}
+              {formatZAR(enhancedData.avgProjectValue)}
             </div>
             <p className="text-xs text-spaceAlt mt-1">Per completed project</p>
           </CardContent>
@@ -485,7 +544,7 @@ export default function OverviewSection() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold text-blue-400">
-              R {enhancedData.avgCustomerValue.toLocaleString()}
+              {formatZAR(enhancedData.avgCustomerValue)}
             </div>
             <p className="text-xs text-spaceAlt mt-1">Lifetime value</p>
           </CardContent>
@@ -497,42 +556,74 @@ export default function OverviewSection() {
         {/* Revenue Chart */}
         <Card className="col-span-4 bg-linear-to-br from-space2 to-space1 border-spaceAccent/50 backdrop-blur-xs">
           <CardHeader>
-            <CardTitle className="text-spaceText">Revenue Trends</CardTitle>
+            <CardTitle className="text-spaceText">Money In vs Money Out</CardTitle>
             <CardDescription className="text-spaceAlt">
-              Monthly revenue performance over the last 6 months
+              {expenses.length > 0
+                ? `Revenue against recorded expenses over the last 6 months — ${expenseSummary.latestMonthName} cleared ${formatZAR(expenseSummary.latestProfit)}`
+                : 'Revenue over the last 6 months. Record expenses to see profit here.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={enhancedData.revenueData}>
+              <LineChart data={profitSeries} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="rgba(141,246,255,0.10)" vertical={false} />
                 <XAxis
                   dataKey="name"
-                  stroke="#888888"
+                  stroke="#6fc2ff"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
-                  stroke="#888888"
+                  stroke="#6fc2ff"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => `R${value}`}
+                  width={72}
+                  tickFormatter={(value) => `R${Number(value).toLocaleString('en-ZA')}`}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#424769', 
-                    border: '1px solid #f9b17a',
-                    borderRadius: '8px',
-                    color: '#ffffff'
+                <Tooltip
+                  cursor={{ stroke: 'rgba(141,246,255,0.25)' }}
+                  formatter={(value, name) => [formatZAR(Number(value ?? 0)), String(name ?? '')]}
+                  contentStyle={{
+                    backgroundColor: '#060a11',
+                    border: '1px solid rgba(141,246,255,0.35)',
+                    borderRadius: '12px',
+                    color: '#edf4ff',
                   }}
+                  labelStyle={{ color: '#6fc2ff' }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="total" 
-                  stroke="#f9b17a" 
-                  strokeWidth={3}
-                  dot={{ fill: '#f9b17a', strokeWidth: 2, r: 4 }}
+                <Legend
+                  iconType="plainline"
+                  wrapperStyle={{ fontSize: 12, color: '#edf4ff', paddingTop: 8 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  name="Revenue"
+                  stroke="#8df6ff"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expenses"
+                  name="Expenses"
+                  stroke="#f87171"
+                  strokeWidth={2}
+                  strokeDasharray="5 4"
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="profit"
+                  name="Profit"
+                  stroke="#4ade80"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -565,12 +656,12 @@ export default function OverviewSection() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#424769', 
-                        border: '1px solid #f9b17a',
-                        borderRadius: '8px',
-                        color: '#ffffff'
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#060a11',
+                        border: '1px solid rgba(141,246,255,0.35)',
+                        borderRadius: '12px',
+                        color: '#edf4ff'
                       }}
                     />
                   </RechartsPieChart>
@@ -625,7 +716,7 @@ export default function OverviewSection() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-spaceText">
-                        R {customer.totalSpent.toLocaleString()}
+                        {formatZAR(customer.totalSpent)}
                       </p>
                       <p className="text-xs text-spaceAlt">{customer.projects} projects</p>
                     </div>

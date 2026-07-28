@@ -6,7 +6,9 @@ import { db } from '@/firebase/firebaseConfig';
 import { Customer } from '@/types/customer';
 import { Project } from '@/types/project';
 import { Quote } from '@/types/quote';
-import { normalizeQuote, pickNumber } from '@/lib/firestore-schema';
+import { Expense } from '@/types/expense';
+import { normalizeQuote, pickNumber, toDate } from '@/lib/firestore-schema';
+import { normalizeExpense } from '@/lib/expenses';
 
 // Quotes Context
 interface QuotesContextType {
@@ -221,6 +223,58 @@ export function CustomersProvider({ children }: { children: React.ReactNode }) {
 export function useCustomers() {
   const context = useContext(CustomersContext);
   if (!context) throw new Error('useCustomers must be used within CustomersProvider');
+  return context;
+}
+
+// Expenses Context
+interface ExpensesContextType {
+  expenses: Expense[];
+  isLoading: boolean;
+  refreshData: () => Promise<void>;
+  lastUpdated: Date | null;
+}
+
+const ExpensesContext = createContext<ExpensesContextType | undefined>(undefined);
+
+export function ExpensesProvider({ children }: { children: React.ReactNode }) {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  useEffect(() => {
+    // No orderBy in the query (avoids an index); newest-first sorting is client-side.
+    const unsubscribe = onSnapshot(
+      collection(db, "expenses"),
+      (snapshot) => {
+        const rows = snapshot.docs.map((doc) => normalizeExpense(doc.id, doc.data()));
+        rows.sort((a, b) => (toDate(b.date)?.getTime() ?? 0) - (toDate(a.date)?.getTime() ?? 0));
+        setExpenses(rows);
+        setLastUpdated(new Date());
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('expenses snapshot error', error);
+        setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
+
+  return (
+    <ExpensesContext.Provider value={{ expenses, isLoading, refreshData, lastUpdated }}>
+      {children}
+    </ExpensesContext.Provider>
+  );
+}
+
+export function useExpenses() {
+  const context = useContext(ExpensesContext);
+  if (!context) throw new Error('useExpenses must be used within ExpensesProvider');
   return context;
 }
 
