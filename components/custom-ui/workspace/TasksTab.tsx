@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { logActivity } from '@/lib/activity';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
 
 interface Task {

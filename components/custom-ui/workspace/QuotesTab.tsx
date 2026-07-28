@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { UploadDocumentModal } from "../upload-document-modal";
 import { pickNumber, toDate } from '@/lib/firestore-schema';
 import { logActivity } from '@/lib/activity';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { FileText } from 'lucide-react';
 

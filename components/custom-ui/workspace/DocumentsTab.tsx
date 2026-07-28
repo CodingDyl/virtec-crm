@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UploadDocumentModal } from "../upload-document-modal";
 import { ConfirmDialog } from "../confirm-dialog";
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { FileText, ExternalLink, Trash2 } from 'lucide-react';
 
 interface DocumentsTabProps {

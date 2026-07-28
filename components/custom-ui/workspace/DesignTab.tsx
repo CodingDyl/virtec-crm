@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "../confirm-dialog";
 import { logActivity } from '@/lib/activity';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { ImagePlus, Link2, Trash2, ExternalLink } from 'lucide-react';
 
 interface DesignItem {

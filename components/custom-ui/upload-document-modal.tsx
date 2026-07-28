@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
 
 interface UploadDocumentModalProps {

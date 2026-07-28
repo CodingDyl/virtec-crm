@@ -22,7 +22,7 @@ import { ConfirmDialog } from "./confirm-dialog";
 import { Progress } from "@/components/ui/progress";
 import { usePagination } from "@/hooks/use-pagination";
 import { TablePagination } from "./table-pagination";
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { Quantum } from 'ldrs/react';
 import 'ldrs/react/Quantum.css';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
