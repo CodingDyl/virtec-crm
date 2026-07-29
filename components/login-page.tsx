@@ -29,13 +29,18 @@ export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
+  const [serverFault, setServerFault] = useState(false)
 
   /*
    * The browser's Firebase session and the server's cookie expire on different
    * clocks. When the client is still signed in but the cookie has lapsed,
    * navigating straight to /dashboard would bounce off the middleware and come
-   * back here — a redirect loop. Mint a fresh cookie first, and if the account
-   * can no longer have one, sign it out rather than looping.
+   * back here — a redirect loop. Mint a fresh cookie first.
+   *
+   * Only a 403 signs the user out: that is the server saying this account is
+   * genuinely not an operator. A 503 or a network failure means the *server*
+   * is unwell, and signing someone out for that makes a correct password look
+   * rejected — which is exactly how it reads from the sign-in form.
    */
   useEffect(() => {
     return onAuthStateChanged(auth, async (user) => {
@@ -51,12 +56,15 @@ export default function LoginPage() {
 
         if (response.ok) {
           router.replace(safeNextPath())
-        } else {
+        } else if (response.status === 403) {
           await signOut(auth)
+          toast.error('This account is not authorised for this workspace.')
+        } else {
+          setServerFault(true)
         }
       } catch (error) {
         console.error('Could not restore session:', error)
-        await signOut(auth)
+        setServerFault(true)
       }
     })
   }, [router])
@@ -98,14 +106,21 @@ export default function LoginPage() {
       })
 
       if (!response.ok) {
-        await signOut(auth)
         setIsLoading(false)
         const { error } = await response.json().catch(() => ({ error: null }))
-        toast.error(
-          response.status === 403
-            ? 'This account is not authorised for this workspace.'
-            : error ?? 'Could not start a session. Please try again.'
-        )
+
+        if (response.status === 403) {
+          // Genuinely not an operator — the only case that warrants signing out.
+          await signOut(auth)
+          toast.error('This account is not authorised for this workspace.')
+          return
+        }
+
+        // Your credentials were accepted; the server just cannot issue a
+        // session. Staying signed in keeps this distinguishable from a bad
+        // password, which is what it looked like before.
+        setServerFault(true)
+        toast.error(error ?? 'Could not start a session. Please try again.')
         return
       }
 
@@ -137,6 +152,17 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Your password was fine; the server could not issue a session. Said
+              plainly, because the alternative reads as "wrong password". */}
+          {serverFault && (
+            <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-100">
+              <p className="font-semibold">Your password is fine — the server can&apos;t sign you in.</p>
+              <p className="mt-1 text-yellow-100/85">
+                This deployment is missing its <code>FIREBASE_SERVICE_ACCOUNT</code> credential.
+                See step 3 of <code>docs/SECURITY-ROLLOUT.md</code>.
+              </p>
+            </div>
+          )}
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-spaceText">Email</Label>

@@ -23,6 +23,9 @@ const Quotes = dynamic(() => import('./custom-ui/quotes'), {
 const ExpensesSection = dynamic(() => import('./custom-ui/expenses-section'), {
   loading: () => <div>Loading...</div>
 })
+const ProductsSection = dynamic(() => import('./custom-ui/products/ProductsSection'), {
+  loading: () => <div>Loading...</div>
+})
 const Subscriptions = dynamic(() => import('./custom-ui/subcriptions'), {
   loading: () => <div>Loading...</div>
 })
@@ -59,6 +62,7 @@ export function Dashboard() {
               <TabsTrigger value="workspace" onClick={() => setActiveTab('workspace')}>Workspace</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')}>Quotes</TabsTrigger>
               <TabsTrigger value="expenses" onClick={() => setActiveTab('expenses')}>Expenses</TabsTrigger>
+              <TabsTrigger value="products" onClick={() => setActiveTab('products')}>Products</TabsTrigger>
               <TabsTrigger value="maintenance-table" onClick={() => setActiveTab('maintenance-table')}>Maintenance Table</TabsTrigger>
               <TabsTrigger value="subscriptions" onClick={() => setActiveTab('subscriptions')}>Subscriptions</TabsTrigger>
               <TabsTrigger value="passwords" onClick={() => setActiveTab('passwords')}>Passwords</TabsTrigger>
@@ -83,6 +87,9 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="expenses" className="space-y-4">
               <ExpensesSection />
+            </TabsContent>
+            <TabsContent value="products" className="space-y-4">
+              <ProductsSection />
             </TabsContent>
             <TabsContent value="subscriptions" className="space-y-4">
               <Subscriptions />

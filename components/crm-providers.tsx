@@ -9,6 +9,7 @@ import {
   SubscriptionsProvider,
   ExpensesProvider,
   MaintenanceInvoicesProvider,
+  ProductsProvider,
 } from "@/contexts/DataContexts";
 
 /**
@@ -33,7 +34,9 @@ export function CrmProviders({ children }: { children: React.ReactNode }) {
             <SubscriptionsProvider>
               <ExpensesProvider>
                 <MaintenanceInvoicesProvider>
-                  {children}
+                  <ProductsProvider>
+                    {children}
+                  </ProductsProvider>
                 </MaintenanceInvoicesProvider>
               </ExpensesProvider>
             </SubscriptionsProvider>

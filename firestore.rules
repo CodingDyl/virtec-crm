@@ -39,6 +39,10 @@ service cloud.firestore {
     match /expenses/{id}             { allow read, write: if isOperator(); }
     match /subscribers/{id}          { allow read, write: if isOperator(); }
 
+    // Virtara's own products, and their release logs.
+    match /products/{id}             { allow read, write: if isOperator(); }
+    match /product_releases/{id}     { allow read, write: if isOperator(); }
+
     // Credential stores. Same rule, called out so it is obvious that nothing
     // weaker may ever be applied here.
     match /passwords/{id}            { allow read, write: if isOperator(); }

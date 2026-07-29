@@ -7,6 +7,7 @@ import { Customer } from '@/types/customer';
 import { Project } from '@/types/project';
 import { Quote } from '@/types/quote';
 import { Expense } from '@/types/expense';
+import { Product } from '@/types/product';
 import { MaintenanceInvoice } from '@/types/maintenance';
 import { normalizeQuote, pickNumber, toDate } from '@/lib/firestore-schema';
 import { normalizeExpense } from '@/lib/expenses';
@@ -334,6 +335,70 @@ export function MaintenanceInvoicesProvider({ children }: { children: React.Reac
 export function useMaintenanceInvoices() {
   const context = useContext(MaintenanceInvoicesContext);
   if (!context) throw new Error('useMaintenanceInvoices must be used within MaintenanceInvoicesProvider');
+  return context;
+}
+
+// Products Context
+interface ProductsContextType {
+  products: Product[];
+  isLoading: boolean;
+  refreshData: () => Promise<void>;
+  lastUpdated: Date | null;
+}
+
+const ProductsContext = createContext<ProductsContextType | undefined>(undefined);
+
+/** Virtara's own products, kept separate from client projects. */
+export function ProductsProvider({ children }: { children: React.ReactNode }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, 'products'),
+      (snapshot) => {
+        const rows = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name ?? 'Untitled',
+            tagline: data.tagline ?? '',
+            stage: (data.stage ?? 'idea') as Product['stage'],
+            notes: data.notes ?? '',
+            links: Array.isArray(data.links) ? data.links : [],
+            createdAt: data.createdAt ?? null,
+            updatedAt: data.updatedAt ?? null,
+          } satisfies Product;
+        });
+        rows.sort((a, b) => a.name.localeCompare(b.name));
+        setProducts(rows);
+        setLastUpdated(new Date());
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('products snapshot error', error);
+        setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
+
+  return (
+    <ProductsContext.Provider value={{ products, isLoading, refreshData, lastUpdated }}>
+      {children}
+    </ProductsContext.Provider>
+  );
+}
+
+export function useProducts() {
+  const context = useContext(ProductsContext);
+  if (!context) throw new Error('useProducts must be used within ProductsProvider');
   return context;
 }
 
