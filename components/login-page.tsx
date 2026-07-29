@@ -8,11 +8,20 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from "lucide-react"
-import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth'
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { auth } from '@/firebase/firebaseConfig'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import icon from '@/app/icon.png'
+
+/** Where to land after sign-in, honouring ?next= without allowing an open redirect. */
+function safeNextPath(): string {
+  if (typeof window === 'undefined') return '/dashboard'
+  const next = new URLSearchParams(window.location.search).get('next')
+  // Only same-site absolute paths. "//evil.com" and "https://…" are rejected.
+  if (next && next.startsWith('/') && !next.startsWith('//')) return next
+  return '/dashboard'
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -21,11 +30,34 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
 
-  // A live session should not have to be re-entered; the guard on /dashboard
-  // sends anyone unauthorised straight back here.
+  /*
+   * The browser's Firebase session and the server's cookie expire on different
+   * clocks. When the client is still signed in but the cookie has lapsed,
+   * navigating straight to /dashboard would bounce off the middleware and come
+   * back here — a redirect loop. Mint a fresh cookie first, and if the account
+   * can no longer have one, sign it out rather than looping.
+   */
   useEffect(() => {
-    return onAuthStateChanged(auth, (user) => {
-      if (user) router.replace('/dashboard')
+    return onAuthStateChanged(auth, async (user) => {
+      if (!user) return
+
+      try {
+        const idToken = await user.getIdToken()
+        const response = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        })
+
+        if (response.ok) {
+          router.replace(safeNextPath())
+        } else {
+          await signOut(auth)
+        }
+      } catch (error) {
+        console.error('Could not restore session:', error)
+        await signOut(auth)
+      }
     })
   }, [router])
 
@@ -53,9 +85,32 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      const credential = await signInWithEmailAndPassword(auth, email, password)
+
+      // Trade the ID token for an httpOnly session cookie so the server can
+      // verify this visitor. The server rejects anyone off the allowlist, so
+      // this is also where "signed in but not authorised" is caught.
+      const idToken = await credential.user.getIdToken()
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      })
+
+      if (!response.ok) {
+        await signOut(auth)
+        setIsLoading(false)
+        const { error } = await response.json().catch(() => ({ error: null }))
+        toast.error(
+          response.status === 403
+            ? 'This account is not authorised for this workspace.'
+            : error ?? 'Could not start a session. Please try again.'
+        )
+        return
+      }
+
       toast.success('Successfully logged in!')
-      router.push('/dashboard')
+      router.replace(safeNextPath())
     } catch (error: any) {
       setIsLoading(false)
       if (error.code === 'auth/invalid-credential') {

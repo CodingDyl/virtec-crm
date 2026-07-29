@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, LayoutGrid, LogOut, FileText, Calculator, Mail, Lock, Receipt } from "lucide-react";
-import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/firebaseConfig';
 import { toast } from 'sonner';
@@ -15,19 +14,21 @@ interface NavbarProps {
 }
 
 export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
-  const router = useRouter();
 
   const handleLogout = async () => {
     // Navigating away used to leave the Firebase session intact, so the next
-    // visit to /dashboard walked straight back in.
+    // visit to /dashboard walked straight back in. Both halves have to go:
+    // the browser's session and the server's cookie.
     try {
+      await fetch('/api/auth/session', { method: 'DELETE' });
       await signOut(auth);
     } catch (error) {
       console.error('Sign out failed:', error);
       toast.error('Could not sign you out. Please try again.');
       return;
     }
-    router.replace('/');
+    // A full load, so no server-rendered page survives in the router cache.
+    window.location.assign('/');
   };
 
   return (

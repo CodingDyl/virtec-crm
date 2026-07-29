@@ -11,6 +11,9 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
  * client component will fail the build, which is the intent.
  */
 
+/** Matches storageBucket in firebase/firebaseConfig.ts. */
+export const STORAGE_BUCKET = 'virtec-crm.firebasestorage.app';
+
 /** Thrown when the deployment has no service-account credential configured. */
 export class AdminNotConfiguredError extends Error {
   constructor() {
@@ -46,7 +49,7 @@ function readServiceAccount(): Record<string, any> | null {
 
 let cached: App | null = null;
 
-function getAdminApp(): App {
+export function getAdminApp(): App {
   if (cached) return cached;
 
   const existing = getApps();
@@ -61,6 +64,7 @@ function getAdminApp(): App {
     cached = initializeApp({
       credential: cert(serviceAccount as any),
       projectId: serviceAccount.project_id,
+      storageBucket: STORAGE_BUCKET,
     });
     return cached;
   }
@@ -68,7 +72,10 @@ function getAdminApp(): App {
   // Google-hosted runtimes (App Hosting, Cloud Run) supply credentials
   // automatically, so no key file is needed there.
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GCLOUD_PROJECT) {
-    cached = initializeApp({ credential: applicationDefault() });
+    cached = initializeApp({
+      credential: applicationDefault(),
+      storageBucket: STORAGE_BUCKET,
+    });
     return cached;
   }
 
