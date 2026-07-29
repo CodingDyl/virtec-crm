@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/firebase/firebaseConfig';
-import { assertQuoteBelongsToToken } from '@/lib/portal';
-import { logActivity } from '@/lib/activity';
+import { decidePortalQuote } from '@/lib/portal';
+import { AdminNotConfiguredError } from '@/lib/firebase-admin';
 
 /**
  * A client accepting or declining a quote from their share link.
  *
- * The token is the only credential, so it is checked here rather than in the
- * browser: it must resolve to an enabled project, and the quote must belong to
- * that project and still be undecided. Anything else is a 404 — a bad token and
- * a quote from someone else's project are indistinguishable from outside.
+ * Ownership and state are enforced in decidePortalQuote against the Admin SDK.
+ * Every rejection is reported as a 404: from outside, a bad token, someone
+ * else's quote, and an already-decided quote must look identical.
  */
 export async function POST(request: NextRequest) {
   let body: { token?: string; quoteId?: string; decision?: string };
@@ -27,38 +24,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Malformed request.' }, { status: 400 });
   }
 
-  const owner = await assertQuoteBelongsToToken(token, quoteId);
-  if (!owner) {
-    return NextResponse.json({ error: 'That quote is no longer available.' }, { status: 404 });
-  }
-
   try {
-    await updateDoc(doc(db, 'quotes', quoteId), {
-      status: decision,
-      decidedAt: serverTimestamp(),
-      decidedVia: 'portal',
-    });
+    const result = await decidePortalQuote(token, quoteId, decision);
 
-    // Accepting makes the quote the source of truth for the project amount,
-    // exactly as the internal Quotes tab does — otherwise job margin goes stale.
-    if (decision === 'accepted') {
-      await updateDoc(doc(db, 'projects', owner.projectId), {
-        amount: owner.totalAmount,
-        quoteId,
-      });
+    if (!result.ok) {
+      return NextResponse.json({ error: 'That quote is no longer available.' }, { status: 404 });
     }
-
-    await logActivity(
-      'project',
-      owner.projectId,
-      'quote',
-      decision === 'accepted'
-        ? `Client accepted a quote from the portal — project amount synced to R${owner.totalAmount.toLocaleString()}`
-        : 'Client declined a quote from the portal'
-    );
 
     return NextResponse.json({ ok: true, status: decision });
   } catch (error) {
+    if (error instanceof AdminNotConfiguredError) {
+      console.error('Portal quote decision attempted without Admin credentials.');
+      return NextResponse.json(
+        { error: 'The portal is temporarily unavailable. Please contact us directly.' },
+        { status: 503 }
+      );
+    }
     console.error('portal quote decision failed:', error);
     return NextResponse.json({ error: 'Could not record your decision.' }, { status: 500 });
   }

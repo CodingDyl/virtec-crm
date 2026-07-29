@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 
 import { useRouter } from 'next/navigation'
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from "lucide-react"
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/firebase/firebaseConfig'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -19,6 +19,34 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+
+  // A live session should not have to be re-entered; the guard on /dashboard
+  // sends anyone unauthorised straight back here.
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      if (user) router.replace('/dashboard')
+    })
+  }, [router])
+
+  const handleReset = async () => {
+    if (!email) {
+      toast.error('Enter your email address first, then tap reset.')
+      return
+    }
+
+    setIsResetting(true)
+    try {
+      await sendPasswordResetEmail(auth, email)
+    } catch (error) {
+      // Deliberately not surfaced: a distinct "no such user" reply would let
+      // anyone test which addresses have accounts on this workspace.
+      console.error('Password reset failed:', error)
+    } finally {
+      setIsResetting(false)
+      toast.success(`If ${email} has an account, a reset link is on its way.`)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,17 +125,18 @@ export default function LoginPage() {
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-spaceAlt/80 text-center">
-            Don&apos;t have an account?{' '}
-            <a href="#" className="text-spaceAccent hover:underline underline-offset-4">
-              Sign up
-            </a>
-          </div>
-          <div className="text-sm text-spaceAlt/80 text-center">
-            <a href="#" className="text-spaceAccent hover:underline underline-offset-4">
-              Forgot your password?
-            </a>
-          </div>
+          {/*
+            No sign-up link: access is granted from the Firebase console via the
+            operator allowlist, so offering to create an account would be a lie.
+          */}
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={isLoading || isResetting}
+            className="text-sm text-spaceAccent underline-offset-4 hover:underline disabled:opacity-60"
+          >
+            {isResetting ? 'Sending reset link…' : 'Forgot your password?'}
+          </button>
         </CardFooter>
       </Card>
     </div>

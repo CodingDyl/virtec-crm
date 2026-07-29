@@ -1,13 +1,15 @@
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import { db } from '@/firebase/firebaseConfig';
-import { Project } from '@/types/project';
-import { BusinessDocument } from '@/types/document';
+import 'server-only';
+import { FieldValue, Firestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { pickNumber, pickValue, toDate } from '@/lib/firestore-schema';
 
 /**
- * The client-facing portal. Everything here runs on the server: a visitor
- * holding a share link never gets a Firestore handle, only the one project
- * slice this module assembles for them.
+ * The client-facing portal.
+ *
+ * Everything here runs on the server through the Admin SDK. Firestore rules
+ * deny all browser access outside the operator allowlist, so a visitor holding
+ * a share link never gets a database handle — they get exactly the slice this
+ * module assembles, and nothing else.
  */
 
 export { generatePortalToken } from '@/lib/portal-token';
@@ -49,51 +51,62 @@ export interface PortalData {
   documents: PortalDocument[];
 }
 
-/** Resolve a share token to its project, or null when the link is dead or switched off. */
-export async function findProjectByToken(
-  token: string
-): Promise<{ id: string; data: Project & Record<string, any> } | null> {
-  if (!token || token.length < 16) return null;
+type Snap = QueryDocumentSnapshot;
 
-  const snap = await getDocs(query(collection(db, 'projects'), where('portalToken', '==', token)));
+async function findByField(
+  db: Firestore,
+  collection: string,
+  field: string,
+  value: string
+): Promise<Snap[]> {
+  const snap = await db.collection(collection).where(field, '==', value).get();
+  return snap.docs;
+}
+
+/** Resolve a share token to its project, or null when the link is dead or switched off. */
+async function findProjectByToken(db: Firestore, token: string) {
+  // A short token is never one we issued; refuse before touching the database.
+  if (!token || token.length < 32) return null;
+
+  const snap = await db.collection('projects').where('portalToken', '==', token).limit(1).get();
   const match = snap.docs[0];
   if (!match) return null;
 
-  const data = match.data();
   // A revoked link resolves to nothing, exactly like a token that never existed.
-  if (data.portalEnabled === false) return null;
+  if (match.data().portalEnabled === false) return null;
 
-  return { id: match.id, data: data as Project & Record<string, any> };
+  return match;
 }
 
 const iso = (value: any): string | null => toDate(value)?.toISOString() ?? null;
 
 /**
  * Assemble everything the client is allowed to see. Deliberately narrow:
- * no internal design notes, no margins, no other clients.
+ * no internal design notes, no costs or margins, no other clients.
  */
 export async function fetchPortalData(
   token: string,
   { recordView = true }: { recordView?: boolean } = {}
 ): Promise<PortalData | null> {
-  const project = await findProjectByToken(token);
+  const db = getAdminDb();
+  const project = await findProjectByToken(db, token);
   if (!project) return null;
 
   // "Last opened" should mean the client opened it, so previews don't count.
   if (recordView) {
-    updateDoc(doc(db, 'projects', project.id), { portalLastViewedAt: serverTimestamp() }).catch(
-      (error) => console.error('portal view stamp failed', error)
-    );
+    project.ref
+      .update({ portalLastViewedAt: FieldValue.serverTimestamp() })
+      .catch((error) => console.error('portal view stamp failed', error));
   }
 
-  const [taskSnap, quoteSnapA, quoteSnapB, docSnap] = await Promise.all([
-    getDocs(query(collection(db, 'project_tasks'), where('projectId', '==', project.id))),
-    getDocs(query(collection(db, 'quotes'), where('projectId', '==', project.id))),
-    getDocs(query(collection(db, 'quotes'), where('project_id', '==', project.id))),
-    getDocs(query(collection(db, 'documents'), where('linkedId', '==', project.id))),
+  const [taskDocs, quoteDocsA, quoteDocsB, documentDocs] = await Promise.all([
+    findByField(db, 'project_tasks', 'projectId', project.id),
+    findByField(db, 'quotes', 'projectId', project.id),
+    findByField(db, 'quotes', 'project_id', project.id),
+    findByField(db, 'documents', 'linkedId', project.id),
   ]);
 
-  const tasks: PortalTask[] = taskSnap.docs
+  const tasks: PortalTask[] = taskDocs
     .map((d) => {
       const data = d.data();
       return {
@@ -108,7 +121,7 @@ export async function fetchPortalData(
     .map(({ id, title, done }) => ({ id, title, done }));
 
   // Both key spellings exist in this data; dedupe by document id.
-  const quoteDocs = new Map([...quoteSnapA.docs, ...quoteSnapB.docs].map((d) => [d.id, d]));
+  const quoteDocs = new Map([...quoteDocsA, ...quoteDocsB].map((d) => [d.id, d]));
   const quotes: PortalQuote[] = [...quoteDocs.values()]
     .map((d) => {
       const data = d.data();
@@ -124,9 +137,9 @@ export async function fetchPortalData(
     })
     .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
 
-  const documents: PortalDocument[] = docSnap.docs
+  const documents: PortalDocument[] = documentDocs
     .map((d) => {
-      const data = d.data() as BusinessDocument;
+      const data = d.data();
       return {
         id: d.id,
         name: data.name ?? 'Document',
@@ -138,40 +151,71 @@ export async function fetchPortalData(
     .filter((d) => d.fileUrl)
     .sort((a, b) => (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? ''));
 
+  const data = project.data();
+
   return {
     projectId: project.id,
-    projectType: project.data.projectType ?? 'Project',
-    clientName: project.data.clientName ?? '',
-    status: project.data.status ?? 'active',
-    completion: pickNumber(project.data, ['completion'], 0),
-    agreementStatus: project.data.agreementStatus ?? null,
-    startedAt: iso(project.data.createdAt),
+    projectType: data.projectType ?? 'Project',
+    clientName: data.clientName ?? '',
+    status: data.status ?? 'active',
+    completion: pickNumber(data, ['completion'], 0),
+    agreementStatus: data.agreementStatus ?? null,
+    startedAt: iso(data.createdAt),
     tasks,
     quotes,
     documents,
   };
 }
 
-/** Confirm a quote really belongs to the project behind this token before touching it. */
-export async function assertQuoteBelongsToToken(
+/**
+ * Record a client's decision on a quote.
+ *
+ * The token is the only credential the caller holds, so every constraint is
+ * checked here: the token must resolve to an enabled project, the quote must
+ * belong to that project, and it must still be undecided.
+ */
+export async function decidePortalQuote(
   token: string,
-  quoteId: string
-): Promise<{ projectId: string; projectType: string; totalAmount: number } | null> {
-  const project = await findProjectByToken(token);
-  if (!project) return null;
+  quoteId: string,
+  decision: 'accepted' | 'rejected'
+): Promise<{ ok: true; totalAmount: number } | { ok: false }> {
+  const db = getAdminDb();
+  const project = await findProjectByToken(db, token);
+  if (!project) return { ok: false };
 
-  const quote = await getDoc(doc(db, 'quotes', quoteId));
-  if (!quote.exists()) return null;
+  const quoteRef = db.collection('quotes').doc(quoteId);
+  const quote = await quoteRef.get();
+  if (!quote.exists) return { ok: false };
 
-  const data = quote.data();
+  const data = quote.data() ?? {};
   const owner = data.projectId ?? data.project_id;
-  if (owner !== project.id) return null;
-  // Only an undecided quote can be decided.
-  if ((data.status ?? 'pending') !== 'pending') return null;
+  if (owner !== project.id) return { ok: false };
+  if ((data.status ?? 'pending') !== 'pending') return { ok: false };
 
-  return {
-    projectId: project.id,
-    projectType: project.data.projectType ?? 'Project',
-    totalAmount: pickNumber(data, ['totalAmount', 'total_amount'], 0),
-  };
+  const totalAmount = pickNumber(data, ['totalAmount', 'total_amount'], 0);
+
+  await quoteRef.update({
+    status: decision,
+    decidedAt: FieldValue.serverTimestamp(),
+    decidedVia: 'portal',
+  });
+
+  // Accepting makes the quote the source of truth for the project amount,
+  // exactly as the internal Quotes tab does — otherwise job margin goes stale.
+  if (decision === 'accepted') {
+    await project.ref.update({ amount: totalAmount, quoteId });
+  }
+
+  await db.collection('activity').add({
+    refType: 'project',
+    refId: project.id,
+    type: 'quote',
+    message:
+      decision === 'accepted'
+        ? `Client accepted a quote from the portal — project amount synced to R${totalAmount.toLocaleString()}`
+        : 'Client declined a quote from the portal',
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  return { ok: true, totalAmount };
 }

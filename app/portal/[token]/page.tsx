@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchPortalData } from '@/lib/portal';
+import { AdminNotConfiguredError } from '@/lib/firebase-admin';
 import { PortalView } from './PortalView';
+import { PortalUnavailable } from './PortalUnavailable';
 
 // The client's data must never come from a build-time snapshot.
 export const dynamic = 'force-dynamic';
@@ -20,7 +22,19 @@ export default async function PortalPage({
   searchParams: Promise<{ preview?: string }>;
 }) {
   const [{ token }, { preview }] = await Promise.all([params, searchParams]);
-  const data = await fetchPortalData(token, { recordView: preview !== '1' });
+
+  let data;
+  try {
+    data = await fetchPortalData(token, { recordView: preview !== '1' });
+  } catch (error) {
+    // A missing credential is an operator problem, not a dead link — saying
+    // "not found" here would send the client chasing a link that is fine.
+    if (error instanceof AdminNotConfiguredError) {
+      console.error('Portal request served without Admin credentials configured.');
+      return <PortalUnavailable />;
+    }
+    throw error;
+  }
 
   if (!data) notFound();
 

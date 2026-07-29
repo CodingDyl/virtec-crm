@@ -2,6 +2,50 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Authorisation is per-account, not merely "signed in".
+    //
+    // The Firebase web config ships in the browser bundle, so anyone can call
+    // createUserWithEmailAndPassword against this project and obtain a valid
+    // token. `request.auth != null` would therefore grant the whole database
+    // to the public. Access is granted by adding a document at
+    // operators/{uid} — writable only from the Firebase console.
+    function isOperator() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/operators/$(request.auth.uid));
+    }
+
+    // An account may check whether it is an operator, and nothing more.
+    // Listing is denied so the allowlist cannot be enumerated, and no client
+    // may ever grant access to itself or anyone else.
+    match /operators/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    // ── Business records ────────────────────────────────────────────────────
+    // The client portal does not appear here: it reads through the Admin SDK
+    // on the server, which is not subject to these rules. Nothing in the
+    // portal's path needs browser access.
+
+    match /customers/{id}            { allow read, write: if isOperator(); }
+    match /projects/{id}             { allow read, write: if isOperator(); }
+    match /quotes/{id}               { allow read, write: if isOperator(); }
+    match /documents/{id}            { allow read, write: if isOperator(); }
+    match /project_tasks/{id}        { allow read, write: if isOperator(); }
+    match /design_items/{id}         { allow read, write: if isOperator(); }
+    match /activity/{id}             { allow read, write: if isOperator(); }
+    match /maintenance_invoices/{id} { allow read, write: if isOperator(); }
+    match /expenses/{id}             { allow read, write: if isOperator(); }
+    match /subscribers/{id}          { allow read, write: if isOperator(); }
+
+    // Credential stores. Same rule, called out so it is obvious that nothing
+    // weaker may ever be applied here.
+    match /passwords/{id}            { allow read, write: if isOperator(); }
+    match /recovery_codes/{id}       { allow read, write: if isOperator(); }
+
+    // Anything not named above is denied. A new collection stays unreachable
+    // from the browser until it is added here on purpose.
     match /{document=**} {
       allow read, write: if false;
     }

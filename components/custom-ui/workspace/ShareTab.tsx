@@ -29,8 +29,18 @@ export function ShareTab({ project }: ShareTabProps) {
   const [copied, setCopied] = useState(false);
   const [revoking, setRevoking] = useState(false);
   const [origin, setOrigin] = useState('');
+  const [portalConfigured, setPortalConfigured] = useState<boolean | null>(null);
 
   useEffect(() => setOrigin(window.location.origin), []);
+
+  // Portal pages are served by the Admin SDK. Without its credential every
+  // link 503s, so say so here rather than letting a client discover it.
+  useEffect(() => {
+    fetch('/api/portal/status')
+      .then((r) => r.json())
+      .then((d) => setPortalConfigured(Boolean(d.configured)))
+      .catch(() => setPortalConfigured(null));
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -111,6 +121,14 @@ export function ShareTab({ project }: ShareTabProps) {
           and approve quotes without emailing you.
         </p>
       </div>
+
+      {portalConfigured === false && (
+        <p className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+          <span className="font-semibold">Portal not configured on this deployment.</span> Links can
+          be created, but they won&rsquo;t load until <code>FIREBASE_SERVICE_ACCOUNT</code> is set.
+          Don&rsquo;t send one to a client yet.
+        </p>
+      )}
 
       {!isLive ? (
         <div className="rounded-lg border border-spaceAccent/20 bg-space1/40 p-4 text-center">
