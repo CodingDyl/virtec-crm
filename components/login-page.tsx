@@ -29,7 +29,7 @@ export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
-  const [serverFault, setServerFault] = useState(false)
+  const [serverFault, setServerFault] = useState<'credentials' | 'generic' | null>(null)
 
   /*
    * The browser's Firebase session and the server's cookie expire on different
@@ -60,11 +60,12 @@ export default function LoginPage() {
           await signOut(auth)
           toast.error('This account is not authorised for this workspace.')
         } else {
-          setServerFault(true)
+          const { code } = await response.json().catch(() => ({ code: null }))
+          setServerFault(code === 'admin-not-configured' ? 'credentials' : 'generic')
         }
       } catch (error) {
         console.error('Could not restore session:', error)
-        setServerFault(true)
+        setServerFault('generic')
       }
     })
   }, [router])
@@ -107,7 +108,7 @@ export default function LoginPage() {
 
       if (!response.ok) {
         setIsLoading(false)
-        const { error } = await response.json().catch(() => ({ error: null }))
+        const { code, error } = await response.json().catch(() => ({ code: null, error: null }))
 
         if (response.status === 403) {
           // Genuinely not an operator — the only case that warrants signing out.
@@ -119,7 +120,7 @@ export default function LoginPage() {
         // Your credentials were accepted; the server just cannot issue a
         // session. Staying signed in keeps this distinguishable from a bad
         // password, which is what it looked like before.
-        setServerFault(true)
+        setServerFault(code === 'admin-not-configured' ? 'credentials' : 'generic')
         toast.error(error ?? 'Could not start a session. Please try again.')
         return
       }
@@ -156,11 +157,22 @@ export default function LoginPage() {
               plainly, because the alternative reads as "wrong password". */}
           {serverFault && (
             <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-100">
-              <p className="font-semibold">Your password is fine — the server can&apos;t sign you in.</p>
-              <p className="mt-1 text-yellow-100/85">
-                This deployment is missing its <code>FIREBASE_SERVICE_ACCOUNT</code> credential.
-                See step 3 of <code>docs/SECURITY-ROLLOUT.md</code>.
-              </p>
+              {serverFault === 'credentials' ? (
+                <>
+                  <p className="font-semibold">Your password is fine — the server can&apos;t sign you in.</p>
+                  <p className="mt-1 text-yellow-100/85">
+                    This deployment is missing its <code>FIREBASE_SERVICE_ACCOUNT</code> credential.
+                    See step 3 of <code>docs/SECURITY-ROLLOUT.md</code>.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold">Your password is fine — the server can&apos;t start a session.</p>
+                  <p className="mt-1 text-yellow-100/85">
+                    Check the production function logs for <code>/api/auth/session</code>.
+                  </p>
+                </>
+              )}
             </div>
           )}
           <form onSubmit={handleLogin} className="space-y-4">

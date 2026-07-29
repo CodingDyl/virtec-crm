@@ -44,7 +44,10 @@ export async function POST(request: NextRequest) {
   if (!isAdminConfigured()) {
     console.error('Sign-in attempted without Admin credentials configured.');
     return NextResponse.json(
-      { error: 'Sign-in is unavailable: the server is missing its credentials.' },
+      {
+        code: 'admin-not-configured',
+        error: 'Sign-in is unavailable: the server is missing its credentials.',
+      },
       { status: 503 }
     );
   }
@@ -66,7 +69,10 @@ export async function POST(request: NextRequest) {
     if (error instanceof AdminNotConfiguredError) {
       console.error('Sign-in attempted without Admin credentials configured.');
       return NextResponse.json(
-        { error: 'Sign-in is unavailable: the server is missing its credentials.' },
+        {
+          code: 'admin-not-configured',
+          error: 'Sign-in is unavailable: the server is missing its credentials.',
+        },
         { status: 503 }
       );
     }
