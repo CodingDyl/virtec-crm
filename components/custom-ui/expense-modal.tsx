@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/firebase/firebaseConfig';
+import { deleteFiles, openStoredFile, uploadFile } from '@/lib/storage-client';
+import { db } from '@/firebase/firebaseConfig';
 import { useProjects } from '@/contexts/DataContexts';
 import {
   Expense,
@@ -147,17 +147,15 @@ export function ExpenseModal({ open, onOpenChange, expense, defaultProjectId }: 
       let receiptPath = expense?.receiptPath ?? null;
 
       if ((receipt || removeExistingReceipt) && expense?.receiptPath) {
-        try { await deleteObject(ref(storage, expense.receiptPath)); } catch { /* already gone */ }
+        await deleteFiles([expense.receiptPath]);
         receiptUrl = null;
         receiptPath = null;
       }
 
       if (receipt) {
-        const safeName = receipt.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        receiptPath = `receipts/${Date.now()}_${safeName}`;
-        const storageRef = ref(storage, receiptPath);
-        await uploadBytes(storageRef, receipt);
-        receiptUrl = await getDownloadURL(storageRef);
+        // Path only — the receipt is opened through a signed URL on demand.
+        receiptPath = await uploadFile(receipt, 'receipts');
+        receiptUrl = null;
       }
 
       const linkedProject = projects.find((p) => p.id === form.projectId);
@@ -197,7 +195,9 @@ export function ExpenseModal({ open, onOpenChange, expense, defaultProjectId }: 
     }
   };
 
-  const existingReceipt = expense?.receiptUrl && !removeExistingReceipt && !receipt;
+  // Newer receipts carry a path; older ones only a permanent URL.
+  const existingReceiptRef = expense?.receiptPath || expense?.receiptUrl || null;
+  const existingReceipt = existingReceiptRef && !removeExistingReceipt && !receipt;
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!saving) onOpenChange(next); }}>
@@ -379,15 +379,18 @@ export function ExpenseModal({ open, onOpenChange, expense, defaultProjectId }: 
             <Label htmlFor="expense-receipt" className="text-spaceText">Receipt (optional)</Label>
             {existingReceipt ? (
               <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-spaceAccent/30 bg-space1 px-3 py-2">
-                <a
-                  href={expense!.receiptUrl!}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() =>
+                    openStoredFile(existingReceiptRef!).catch(() =>
+                      toast.error('Could not open the receipt.')
+                    )
+                  }
                   className="flex min-w-0 items-center gap-2 text-sm text-spaceAccent hover:underline"
                 >
                   <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span className="truncate">View attached receipt</span>
-                </a>
+                </button>
                 <button
                   type="button"
                   onClick={() => setRemoveExistingReceipt(true)}

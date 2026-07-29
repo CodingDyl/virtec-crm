@@ -4,7 +4,8 @@ export interface BusinessDocument {
   id: string;
   name: string;
   type: DocumentType;
-  fileUrl: string;
+  /** Legacy permanent download URL. New records store only `storagePath`. */
+  fileUrl?: string;
   storagePath: string;
   linkedType: 'project' | 'customer';
   linkedId: string;

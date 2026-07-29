@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { addDoc, collection, deleteDoc, doc, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/firebase/firebaseConfig';
+import { db } from '@/firebase/firebaseConfig';
+import { deleteFiles, openStoredFile, uploadFile } from '@/lib/storage-client';
+import { StoredImage } from '../stored-image';
 import { Project } from '@/types/project';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ interface DesignItem {
   id: string;
   projectId: string;
   kind: 'image' | 'link';
-  url: string;
+  url?: string;
   storagePath?: string;
   title: string;
   createdAt?: any;
@@ -69,13 +70,9 @@ export function DesignTab({ project }: DesignTabProps) {
       if (!file) return;
       setBusy(true);
       try {
-        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const storagePath = `design/projects/${project.id}/${Date.now()}_${safe}`;
-        const sref = ref(storage, storagePath);
-        await uploadBytes(sref, file);
-        const url = await getDownloadURL(sref);
+        const storagePath = await uploadFile(file, 'design');
         await addDoc(collection(db, 'design_items'), {
-          projectId: project.id, kind: 'image', url, storagePath, title: file.name, createdAt: serverTimestamp(),
+          projectId: project.id, kind: 'image', storagePath, title: file.name, createdAt: serverTimestamp(),
         });
         await logActivity('project', project.id, 'design', `Added a design image: ${file.name}`);
       } catch (error) {
@@ -93,7 +90,7 @@ export function DesignTab({ project }: DesignTabProps) {
     setBusy(true);
     try {
       if (deleteTarget.storagePath) {
-        try { await deleteObject(ref(storage, deleteTarget.storagePath)); } catch { /* already gone */ }
+        await deleteFiles([deleteTarget.storagePath]);
       }
       await deleteDoc(doc(db, 'design_items', deleteTarget.id));
       setDeleteTarget(null);
@@ -136,8 +133,11 @@ export function DesignTab({ project }: DesignTabProps) {
           {items.map((item) => (
             <div key={item.id} className="group relative overflow-hidden rounded-lg border border-spaceAccent/25 bg-space1/50">
               {item.kind === 'image' ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.url} alt={item.title} className="h-28 w-full object-cover" />
+                <StoredImage
+                  fileRef={item.storagePath || item.url || ''}
+                  alt={item.title}
+                  className="h-28 w-full object-cover"
+                />
               ) : (
                 <a href={item.url} target="_blank" rel="noopener noreferrer"
                    className="flex h-28 flex-col items-center justify-center gap-1 p-2 text-center">
@@ -146,7 +146,10 @@ export function DesignTab({ project }: DesignTabProps) {
                 </a>
               )}
               <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
-                <button onClick={() => window.open(item.url, '_blank')}
+                <button onClick={() => {
+                          if (item.kind === 'link') { window.open(item.url, '_blank', 'noopener,noreferrer'); return; }
+                          openStoredFile(item.storagePath || item.url || '').catch(() => toast.error('Could not open the image.'));
+                        }}
                         className="rounded bg-black/60 p-1 text-spaceText hover:bg-black/80" aria-label="Open">
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/firebase/firebaseConfig';
+import { db } from '@/firebase/firebaseConfig';
+import { deleteFiles, openStoredFile } from '@/lib/storage-client';
+import { documentFileRef } from '@/lib/firestore-schema';
 import { logActivity } from '@/lib/activity';
 import { Project } from '@/types/project';
 import { BusinessDocument, DOCUMENT_TYPE_LABELS } from '@/types/document';
@@ -41,9 +42,7 @@ export function DocumentsTab({ project }: DocumentsTabProps) {
     if (!deleteTarget) return;
     setBusy(true);
     try {
-      if (deleteTarget.storagePath) {
-        try { await deleteObject(ref(storage, deleteTarget.storagePath)); } catch { /* already gone */ }
-      }
+      await deleteFiles([deleteTarget.storagePath]);
       await deleteDoc(doc(db, 'documents', deleteTarget.id));
       if (deleteTarget.type === 'agreement') {
         await updateDoc(doc(db, 'projects', project.id), { agreementUrl: null, agreementStatus: null });
@@ -82,7 +81,7 @@ export function DocumentsTab({ project }: DocumentsTabProps) {
                 <Badge variant="secondary" className="shrink-0 capitalize">{DOCUMENT_TYPE_LABELS[d.type] ?? d.type}</Badge>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <Button size="sm" variant="ghost" className="text-spaceAccent hover:text-spaceText" onClick={() => window.open(d.fileUrl, '_blank')}>
+                <Button size="sm" variant="ghost" className="text-spaceAccent hover:text-spaceText" onClick={() => openStoredFile(documentFileRef(d)).catch(() => toast.error('Could not open the document.'))}>
                   <ExternalLink className="h-4 w-4" />
                 </Button>
                 <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300" onClick={() => setDeleteTarget(d)}>

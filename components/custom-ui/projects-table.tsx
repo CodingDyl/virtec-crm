@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   collection, doc, updateDoc, getDoc, deleteDoc, getDocs, query, where,
 } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/firebase/firebaseConfig';
+import { db } from '@/firebase/firebaseConfig';
+import { deleteFiles, openStoredFile } from '@/lib/storage-client';
+import { documentFileRef, quoteFileRef } from '@/lib/firestore-schema';
 import { Project } from '@/types/project';
 import { Quote } from '@/types/quote';
 import { BusinessDocument, DOCUMENT_TYPE_LABELS } from '@/types/document';
@@ -153,21 +154,15 @@ export default function ProjectsTable() {
     if (!deleteTarget) return;
     setBusy(true);
     try {
-      // Clean up the stored signed agreement, if any.
-      if (deleteTarget.agreementUrl) {
-        try { await deleteObject(ref(storage, deleteTarget.agreementUrl)); } catch { /* already gone */ }
-      }
-      // Clean up linked documents (files + records).
+      // Clean up linked documents (files + records) and the signed agreement.
       const docsSnap = await getDocs(
         query(collection(db, 'documents'), where('linkedId', '==', deleteTarget.id))
       );
-      await Promise.all(docsSnap.docs.map(async (d) => {
-        const data = d.data() as BusinessDocument;
-        if (data.storagePath) {
-          try { await deleteObject(ref(storage, data.storagePath)); } catch { /* ignore */ }
-        }
-        await deleteDoc(doc(db, 'documents', d.id));
-      }));
+      await deleteFiles([
+        deleteTarget.agreementPath,
+        ...docsSnap.docs.map((d) => (d.data() as BusinessDocument).storagePath),
+      ]);
+      await Promise.all(docsSnap.docs.map((d) => deleteDoc(doc(db, 'documents', d.id))));
 
       await deleteDoc(doc(db, 'projects', deleteTarget.id));
       toast.success('Project deleted.');
@@ -185,12 +180,12 @@ export default function ProjectsTable() {
     if (!deleteDocTarget) return;
     setBusy(true);
     try {
-      if (deleteDocTarget.storagePath) {
-        try { await deleteObject(ref(storage, deleteDocTarget.storagePath)); } catch { /* ignore */ }
-      }
+      await deleteFiles([deleteDocTarget.storagePath]);
       await deleteDoc(doc(db, 'documents', deleteDocTarget.id));
       if (deleteDocTarget.type === 'agreement' && editingProject) {
-        await updateDoc(doc(db, 'projects', editingProject.id), { agreementUrl: null, agreementStatus: null });
+        await updateDoc(doc(db, 'projects', editingProject.id), {
+          agreementUrl: null, agreementPath: null, agreementStatus: null,
+        });
       }
       toast.success('Document removed.');
       setDeleteDocTarget(null);
@@ -474,7 +469,7 @@ export default function ProjectsTable() {
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <Button size="sm" variant="ghost" className="text-spaceAccent hover:text-spaceText"
-                          onClick={() => window.open(d.fileUrl, '_blank')}>
+                          onClick={() => openStoredFile(documentFileRef(d)).catch(() => toast.error('Could not open the document.'))}>
                           <ExternalLink className="h-4 w-4" />
                         </Button>
                         <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300"
@@ -522,7 +517,7 @@ export default function ProjectsTable() {
                 <p>Created: {(toDate((selectedQuote as any).createdAt ?? selectedQuote.created_at) ?? new Date()).toUTCString()}</p>
               </div>
               <Button
-                onClick={() => window.open((selectedQuote as any).pdfUrl ?? selectedQuote.pdf_url, '_blank')}
+                onClick={() => openStoredFile(quoteFileRef(selectedQuote as any)).catch(() => toast.error('Could not open the quote.'))}
                 className="bg-spaceAccent hover:bg-spaceAlt text-spaceText w-full"
               >
                 Download Quote PDF

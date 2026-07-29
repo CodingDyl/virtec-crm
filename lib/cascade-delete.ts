@@ -8,8 +8,8 @@ import {
   writeBatch,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/firebase/firebaseConfig';
+import { db } from '@/firebase/firebaseConfig';
+import { deleteFiles } from '@/lib/storage-client';
 
 /**
  * Deleting a customer or a project in this CRM is never a single-document
@@ -108,7 +108,7 @@ interface ProjectHaul {
   storagePaths: string[];
 }
 
-async function gatherProject(projectId: string, agreementUrl?: string | null): Promise<ProjectHaul> {
+async function gatherProject(projectId: string, agreementPath?: string | null): Promise<ProjectHaul> {
   const [quotes, documents, tasks, designItems, invoices, expenses, activity] = await Promise.all([
     findAll('quotes', ['projectId', 'project_id'], projectId),
     findAll('documents', ['linkedId'], projectId),
@@ -120,13 +120,21 @@ async function gatherProject(projectId: string, agreementUrl?: string | null): P
   ]);
 
   const storagePaths: string[] = [];
-  if (agreementUrl) storagePaths.push(agreementUrl);
+  if (agreementPath) storagePaths.push(agreementPath);
   documents.forEach((d) => {
     const path = d.data().storagePath;
     if (path) storagePaths.push(path);
   });
   expenses.forEach((d) => {
     const path = d.data().receiptPath;
+    if (path) storagePaths.push(path);
+  });
+  quotes.forEach((d) => {
+    const path = d.data().pdfPath;
+    if (path) storagePaths.push(path);
+  });
+  invoices.forEach((d) => {
+    const path = d.data().pdfPath;
     if (path) storagePaths.push(path);
   });
 
@@ -162,9 +170,9 @@ function haulToSnaps(haul: ProjectHaul): Snap[] {
 /** What removing a single project would take with it. */
 export async function getProjectDeletionImpact(
   projectId: string,
-  agreementUrl?: string | null
+  agreementPath?: string | null
 ): Promise<DeletionImpact> {
-  const haul = await gatherProject(projectId, agreementUrl);
+  const haul = await gatherProject(projectId, agreementPath);
   return haulToImpact(haul, 1);
 }
 
@@ -173,7 +181,7 @@ export async function getCustomerDeletionImpact(customerId: string): Promise<Del
   const projectSnaps = await findAll('projects', ['clientId', 'client_id'], customerId);
 
   const perProject = await Promise.all(
-    projectSnaps.map((p) => gatherProject(p.id, p.data().agreementUrl))
+    projectSnaps.map((p) => gatherProject(p.id, p.data().agreementPath))
   );
 
   const [customerQuotes, customerDocs, customerInvoices, customerExpenses, customerActivity] =
@@ -222,19 +230,17 @@ async function commitDeletes(refs: { path: string }[]): Promise<void> {
 }
 
 /**
- * Remove stored files. Storage has no batch API and a missing object is not an
- * error worth surfacing — the record is going away either way.
+ * Remove stored files through the server broker — storage rules deny the
+ * browser. Legacy permanent URLs are skipped there: they carry no usable path,
+ * and the record that pointed at them is going away regardless.
  */
 async function removeFiles(paths: string[]): Promise<void> {
-  await Promise.all(
-    paths.map(async (path) => {
-      try {
-        await deleteObject(ref(storage, path));
-      } catch {
-        /* already gone, or the URL predates storagePath tracking */
-      }
-    })
-  );
+  try {
+    await deleteFiles(paths);
+  } catch (error) {
+    // Losing the blobs must not strand the records that reference them.
+    console.error('cascade-delete: file removal failed', error);
+  }
 }
 
 /**
@@ -243,9 +249,9 @@ async function removeFiles(paths: string[]): Promise<void> {
  */
 export async function deleteProjectCascade(
   projectId: string,
-  agreementUrl?: string | null
+  agreementPath?: string | null
 ): Promise<DeletionImpact> {
-  const haul = await gatherProject(projectId, agreementUrl);
+  const haul = await gatherProject(projectId, agreementPath);
   await removeFiles(haul.storagePaths);
   await commitDeletes(haulToSnaps(haul).map((s) => ({ path: s.ref.path })));
   await deleteDoc(doc(db, 'projects', projectId));
@@ -257,7 +263,7 @@ export async function deleteCustomerCascade(customerId: string): Promise<Deletio
   const projectSnaps = await findAll('projects', ['clientId', 'client_id'], customerId);
 
   const perProject = await Promise.all(
-    projectSnaps.map((p) => gatherProject(p.id, p.data().agreementUrl))
+    projectSnaps.map((p) => gatherProject(p.id, p.data().agreementPath))
   );
 
   const [customerQuotes, customerDocs, customerInvoices, customerExpenses, customerActivity] =

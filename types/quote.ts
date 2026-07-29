@@ -12,8 +12,9 @@ export interface Quote {
     createdAt: Timestamp | Date | null;        // Canonical creation date
     created_at: Timestamp | Date | null;       // Legacy creation date
     status: 'pending' | 'accepted' | 'rejected'; // Quote status
-    pdfUrl: string;
+    pdfUrl: string;              // Legacy permanent download URL
     pdf_url: string;             // Legacy URL to the PDF document
+    pdfPath?: string;            // Bucket path; resolved to a signed URL on demand
     id: string;                  // Add this line
     features?: string[];          // Array of project features/requirements
 } 

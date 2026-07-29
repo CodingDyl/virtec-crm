@@ -59,6 +59,7 @@ export function normalizeMaintenanceInvoice(id: string, data: AnyRecord): Mainte
     items: Array.isArray(data.items) ? data.items : [],
     totalAmount: pickNumber(data, ['totalAmount', 'total_amount'], 0),
     pdfUrl: pickValue<string>(data, ['pdfUrl', 'pdf_url'], ''),
+    pdfPath: pickValue<string>(data, ['pdfPath'], ''),
     status: (data.status ?? 'pending') as MaintenanceInvoice['status'],
   };
 }

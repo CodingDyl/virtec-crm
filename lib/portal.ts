@@ -2,6 +2,7 @@ import 'server-only';
 import { FieldValue, Firestore, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { pickNumber, pickValue, toDate } from '@/lib/firestore-schema';
+import { signedReadUrl } from '@/lib/storage-server';
 
 /**
  * The client-facing portal.
@@ -122,32 +123,43 @@ export async function fetchPortalData(
 
   // Both key spellings exist in this data; dedupe by document id.
   const quoteDocs = new Map([...quoteDocsA, ...quoteDocsB].map((d) => [d.id, d]));
-  const quotes: PortalQuote[] = [...quoteDocs.values()]
-    .map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        reference: `Q-${d.id.slice(0, 6).toUpperCase()}`,
-        totalAmount: pickNumber(data, ['totalAmount', 'total_amount'], 0),
-        status: (data.status ?? 'pending') as PortalQuote['status'],
-        features: Array.isArray(data.features) ? data.features : [],
-        createdAt: iso(data.createdAt ?? data.created_at),
-        pdfUrl: pickValue<string>(data, ['pdfUrl', 'pdf_url'], ''),
-      };
-    })
-    .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
 
-  const documents: PortalDocument[] = documentDocs
-    .map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        name: data.name ?? 'Document',
-        type: data.type ?? 'other',
-        fileUrl: data.fileUrl ?? '',
-        uploadedAt: iso(data.uploadedAt),
-      };
-    })
+  // Signed here rather than on the page: the client has no session, so a bare
+  // bucket path would be useless to them and a permanent URL would outlive the
+  // share link. These expire on their own.
+  const quotes: PortalQuote[] = (
+    await Promise.all(
+      [...quoteDocs.values()].map(async (d) => {
+        const data = d.data();
+        const ref = pickValue<string>(data, ['pdfPath', 'pdfUrl', 'pdf_url'], '');
+        return {
+          id: d.id,
+          reference: `Q-${d.id.slice(0, 6).toUpperCase()}`,
+          totalAmount: pickNumber(data, ['totalAmount', 'total_amount'], 0),
+          status: (data.status ?? 'pending') as PortalQuote['status'],
+          features: Array.isArray(data.features) ? data.features : [],
+          createdAt: iso(data.createdAt ?? data.created_at),
+          pdfUrl: ref ? (await signedReadUrl(ref)) ?? '' : '',
+        };
+      })
+    )
+  ).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+
+  const documents: PortalDocument[] = (
+    await Promise.all(
+      documentDocs.map(async (d) => {
+        const data = d.data();
+        const ref = pickValue<string>(data, ['storagePath', 'fileUrl'], '');
+        return {
+          id: d.id,
+          name: data.name ?? 'Document',
+          type: data.type ?? 'other',
+          fileUrl: ref ? (await signedReadUrl(ref)) ?? '' : '',
+          uploadedAt: iso(data.uploadedAt),
+        };
+      })
+    )
+  )
     .filter((d) => d.fileUrl)
     .sort((a, b) => (b.uploadedAt ?? '').localeCompare(a.uploadedAt ?? ''));
 

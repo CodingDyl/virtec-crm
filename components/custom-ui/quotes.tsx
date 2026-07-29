@@ -11,11 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ref, deleteObject } from 'firebase/storage';
-import { storage } from '@/firebase/firebaseConfig';
 import { useQuotes } from '@/contexts/DataContexts';
 import { Quantum } from 'ldrs/react';
-import { pickNumber, toDate } from '@/lib/firestore-schema';
+import { pickNumber, quoteFileRef, toDate } from '@/lib/firestore-schema';
+import { deleteFiles, openStoredFile } from '@/lib/storage-client';
+import { toast } from 'sonner';
 import { usePagination } from '@/hooks/use-pagination';
 import { TablePagination } from './table-pagination';
 
@@ -70,20 +70,15 @@ export default function Quotes() {
       .reduce((sum, quote) => sum + pickNumber(quote as any, ["totalAmount", "total_amount"], 0), 0);
   };
 
-  const handleDeleteQuote = async (quoteId: string, pdfUrl: string) => {
+  const handleDeleteQuote = async (quoteId: string, fileRef: string) => {
     try {
-      // Create a reference to the file to delete
-      const pdfRef = ref(storage, pdfUrl);
-
-      // Delete the file
-      await deleteObject(pdfRef);
-
-      // Delete the quote document
+      await deleteFiles([fileRef]);
       await deleteDoc(doc(db, "quotes", quoteId));
-
       await refreshData();
+      toast.success('Quote deleted.');
     } catch (error) {
       console.error("Error deleting quote or PDF:", error);
+      toast.error('Failed to delete the quote.');
     }
   };
 
@@ -296,14 +291,14 @@ export default function Quotes() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open((quote as any).pdfUrl ?? quote.pdf_url, '_blank')}
+                      onClick={() => openStoredFile(quoteFileRef(quote as any)).catch(() => toast.error('Could not open the quote.'))}
                     >
                       PDF
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteQuote(quote.id, (quote as any).pdfUrl ?? quote.pdf_url)}
+                      onClick={() => handleDeleteQuote(quote.id, quoteFileRef(quote as any))}
                     >
                       Delete
                     </Button>

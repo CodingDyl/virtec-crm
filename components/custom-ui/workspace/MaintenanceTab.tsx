@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
+import { openStoredFile } from '@/lib/storage-client';
 import { Project } from '@/types/project';
 import { MaintenanceFrequency, MaintenanceInvoice } from '@/types/maintenance';
 import { useMaintenanceInvoices } from '@/contexts/DataContexts';
@@ -315,7 +316,7 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
                         size="sm"
                         variant="outline"
                         className="border-spaceAccent/40 bg-space2 text-spaceText"
-                        onClick={() => window.open(invoice.pdfUrl, '_blank')}
+                        onClick={() => openStoredFile(invoice.pdfPath || invoice.pdfUrl).catch(() => toast.error('Could not open the invoice.'))}
                       >
                         <FileText className="mr-1 h-3.5 w-3.5" aria-hidden="true" /> PDF
                       </Button>

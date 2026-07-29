@@ -9,7 +9,10 @@ export interface Project {
   status: string;
   completion: number;
   quoteId?: string;
+  /** Legacy permanent download URL for the signed agreement. */
   agreementUrl?: string;
+  /** Bucket path; resolved to a signed URL on demand. */
+  agreementPath?: string;
   agreementStatus?: 'pending' | 'approved' | 'declined' | 'signed';
   createdAt?: any; // Firestore Timestamp
   /** Client portal share link. Null once revoked — the old URL never comes back. */

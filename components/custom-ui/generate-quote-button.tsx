@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
-import { db, storage } from '@/firebase/firebaseConfig';
+import { db } from '@/firebase/firebaseConfig';
 import { collection, doc, updateDoc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 // @ts-ignore
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadFile } from '@/lib/storage-client';
 import { toast } from "sonner"
 import { Project } from '@/types/project';
 // Add interface for form data
@@ -116,10 +116,7 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
       
       // Create a sanitized client name for the file name
       const sanitizedClientName = clientData?.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unknown_client';
-      const storageRef = ref(storage, `quotes/${sanitizedClientName}_${quoteRef.id}_quote.pdf`);
-      
-      await uploadBytes(storageRef, pdfBlob);
-      const pdfUrl = await getDownloadURL(storageRef);
+      const pdfPath = await uploadFile(pdfBlob, 'quotes', `${sanitizedClientName}_${quoteRef.id}_quote.pdf`);
       
       const quoteData = {
         ...formData,
@@ -134,8 +131,7 @@ export const GenerateQuoteButton: React.FC<GenerateQuoteButtonProps> = ({
         status: 'pending',
         createdAt: serverTimestamp(),
         created_at: serverTimestamp(), // legacy compatibility
-        pdfUrl,
-        pdf_url: pdfUrl, // legacy compatibility
+        pdfPath,
         company,
         features: formData.features,
         hostingCost: formData.hostingCost,

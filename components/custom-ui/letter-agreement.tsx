@@ -10,8 +10,8 @@ import { CalendarIcon } from "lucide-react"
 import { addDays, format } from "date-fns"
 import { customers } from '@/constants'
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db, storage } from '@/firebase/firebaseConfig';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db } from '@/firebase/firebaseConfig';
+import { uploadFile } from '@/lib/storage-client';
 import { Project } from '@/types/project';
 import { 
   Document, 
@@ -200,14 +200,12 @@ export default function LetterAgreement() {
     try {
       const pdfBlob = await pdf(agreementDoc).toBlob();
       // Use project ID to ensure uniqueness - no overwrites
-      const storageRef = ref(storage, `letter_of_agreements/${selectedProject.id}_agreement.pdf`);
-      await uploadBytes(storageRef, pdfBlob);
-      const pdfUrl = await getDownloadURL(storageRef);
+      const agreementPath = await uploadFile(pdfBlob, 'agreements', `${selectedProject.id}_agreement.pdf`);
 
       // Update project with agreement URL
       const projectRef = doc(db, "projects", selectedProject.id);
       await updateDoc(projectRef, {
-        agreementUrl: pdfUrl,
+        agreementPath,
         agreementStatus: 'pending'
       });
 

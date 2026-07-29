@@ -30,7 +30,10 @@ export interface MaintenanceInvoice {
   hourlyRate: number;
   items: MaintenanceItem[];
   totalAmount: number;
+  /** Legacy permanent download URL. */
   pdfUrl: string;
+  /** Bucket path; resolved to a signed URL on demand. */
+  pdfPath?: string;
   status: MaintenanceInvoiceStatus;
 }
 

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getOperator } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest) {
   try {
+    // Sends mail from the business's Resend account; operators only.
+    const operator = await getOperator();
+    if (!operator) {
+      return NextResponse.json({ error: 'Not authorised.' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { toEmail } = body;
 

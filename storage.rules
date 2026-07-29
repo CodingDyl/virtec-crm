@@ -3,22 +3,20 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Storage has no view of Firestore, so it cannot consult the operator
-    // allowlist. A signed-in account is the strongest check available here;
-    // the sensitive material (customers, quotes, credentials) lives in
-    // Firestore, which does enforce the allowlist.
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Client portal links keep working: a download URL produced by
-    // getDownloadURL() carries its own access token and is served without
-    // consulting these rules. Only listing and fetching *by path* — which is
-    // what an attacker with the public config would attempt — is gated here.
+    // No client access at all.
+    //
+    // Storage rules cannot read Firestore, so they cannot consult the operator
+    // allowlist — "signed in" was the strongest check available here, and
+    // anyone can sign themselves up against the public config. So the browser
+    // is denied outright instead.
+    //
+    // Every upload, download and delete now goes through /api/storage, which
+    // verifies the operator session and returns a signed URL scoped to one
+    // object for a few minutes. The Admin SDK is not subject to these rules,
+    // and signed URLs are honoured without consulting them, so locking this
+    // down breaks nothing the app does.
     match /{allPaths=**} {
-      allow read: if isSignedIn();
-      // 20 MB ceiling so a leaked session cannot be used to fill the bucket.
-      allow write: if isSignedIn() && request.resource.size < 20 * 1024 * 1024;
+      allow read, write: if false;
     }
   }
 }

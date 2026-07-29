@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { deleteDoc, doc } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/firebase/firebaseConfig';
+import { db } from '@/firebase/firebaseConfig';
+import { deleteFiles, openStoredFile } from '@/lib/storage-client';
 import { useExpenses, useProjects } from '@/contexts/DataContexts';
 import { useDashboard } from '@/contexts/DashboardContext';
 import {
@@ -181,9 +181,7 @@ export default function ExpensesSection() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      if (deleteTarget.receiptPath) {
-        try { await deleteObject(ref(storage, deleteTarget.receiptPath)); } catch { /* already gone */ }
-      }
+      await deleteFiles([deleteTarget.receiptPath]);
       await deleteDoc(doc(db, 'expenses', deleteTarget.id));
       toast.success('Expense removed.');
       setDeleteTarget(null);
@@ -450,16 +448,19 @@ export default function ExpensesSection() {
                             <TableCell className="max-w-56">
                               <div className="flex items-center gap-2">
                                 <span className="truncate font-medium text-spaceText">{expense.vendor}</span>
-                                {expense.receiptUrl && (
-                                  <a
-                                    href={expense.receiptUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                {(expense.receiptPath || expense.receiptUrl) && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openStoredFile(expense.receiptPath || expense.receiptUrl!).catch(() =>
+                                        toast.error('Could not open the receipt.')
+                                      )
+                                    }
                                     aria-label={`View receipt for ${expense.vendor}`}
                                     className="shrink-0 text-spaceAccent transition-opacity duration-150 hover:opacity-70"
                                   >
                                     <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
-                                  </a>
+                                  </button>
                                 )}
                               </div>
                               {expense.description && (

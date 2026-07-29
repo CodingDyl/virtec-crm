@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
+import { openStoredFile } from '@/lib/storage-client'
 import { useCustomers, useMaintenanceInvoices, useProjects } from '@/contexts/DataContexts'
 import { MaintenanceInvoice } from '@/types/maintenance'
 import { invoiceLabel } from '@/lib/maintenance'
@@ -207,7 +208,7 @@ export default function MaintenanceTable() {
           message: emailForm.message.trim(),
           invoiceId: selectedInvoice.id,
           invoiceNumber: invoiceLabel(selectedInvoice),
-          pdfUrl: selectedInvoice.pdfUrl,
+          pdfPath: selectedInvoice.pdfPath || selectedInvoice.pdfUrl,
           clientName: clients[selectedInvoice.clientId]?.name || 'Unknown Client'
         }),
       });
@@ -411,7 +412,7 @@ export default function MaintenanceTable() {
                         variant="outline"
                         size="sm"
                         className="bg-spaceAccent text-space1 hover:bg-spaceAlt"
-                        onClick={() => window.open(invoice.pdfUrl, '_blank')}
+                        onClick={() => openStoredFile(invoice.pdfPath || invoice.pdfUrl).catch(() => toast.error('Could not open the invoice.'))}
                       >
                         View PDF
                       </Button>

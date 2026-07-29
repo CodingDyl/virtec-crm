@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getOperator } from '@/lib/auth-server';
+import { signedReadUrl } from '@/lib/storage-server';
 
 export async function POST(request: NextRequest) {
   try {
+    // This route fetches a URL and then sends mail from the business's Resend
+    // account. Left open, it is both an outbound-request proxy and a way to
+    // send mail as Virtara, so it requires an operator session.
+    const operator = await getOperator();
+    if (!operator) {
+      return NextResponse.json({ error: 'Not authorised.' }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { toEmail, ccEmail, subject, message, invoiceId, invoiceNumber, pdfUrl, clientName } = body;
+    const { toEmail, ccEmail, subject, message, invoiceId, invoiceNumber, pdfPath, clientName } = body;
 
     // Validate required fields
-    if (!toEmail || !subject || !message || !pdfUrl) {
+    if (!toEmail || !subject || !message || !pdfPath) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Resolved here rather than accepted from the caller, so the server only
+    // ever fetches its own storage objects.
+    const pdfUrl = await signedReadUrl(pdfPath);
+    if (!pdfUrl) {
+      return NextResponse.json({ error: 'Invoice PDF not available.' }, { status: 404 });
     }
 
     // Validate email format

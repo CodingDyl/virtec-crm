@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, getDocs, doc, getDoc, setDoc, serverTimestamp, runTransaction } from 'firebase/firestore'
-import { db, storage } from '@/firebase/firebaseConfig'
+import { db } from '@/firebase/firebaseConfig'
 import { Customer } from '@/types/customer'
 import { Project } from '@/types/project'
 import { frequencyLabel, isMaintenanceProject } from '@/lib/maintenance'
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from 'date-fns'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { uploadFile } from '@/lib/storage-client'
 import { toast } from "sonner"
 import { Quantum } from 'ldrs/react'
 
@@ -269,9 +269,7 @@ export default function MaintenanceInvoice() {
           throw new Error(`PDF generation failed with status ${pdfResponse.status}`);
         }
         const pdfBlob = await pdfResponse.blob();
-        const storageRef = ref(storage, `maintenance_invoices/${invoiceRef.id}_${customerId}_${timestamp}_invoice.pdf`);
-        await uploadBytes(storageRef, pdfBlob);
-        const pdfUrl = await getDownloadURL(storageRef);
+        const pdfPath = await uploadFile(pdfBlob, 'invoices', `${invoiceRef.id}_${customerId}_${timestamp}_invoice.pdf`);
 
         await setDoc(invoiceRef, {
           invoiceNumber,
@@ -282,7 +280,7 @@ export default function MaintenanceInvoice() {
           hourlyRate: formData.hourlyRate,
           items: validItems,
           totalAmount,
-          pdfUrl,
+          pdfPath,
           status: 'pending'
         });
 

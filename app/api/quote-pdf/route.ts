@@ -1,4 +1,5 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getOperator } from "@/lib/auth-server";
 import { format } from "date-fns";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
@@ -113,6 +114,12 @@ const originalAmount = (formData: QuoteFormData) => {
 };
 
 export async function POST(req: NextRequest) {
+  // Renders live business data into a document; operators only.
+  const operator = await getOperator();
+  if (!operator) {
+    return NextResponse.json({ error: "Not authorised." }, { status: 401 });
+  }
+
   try {
     const data = await parseBody(req);
     const pdfDoc = await PDFDocument.create();

@@ -3,6 +3,8 @@
 import { useMemo } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
+import { openStoredFile } from '@/lib/storage-client';
+import { quoteFileRef } from '@/lib/firestore-schema';
 import { Project } from '@/types/project';
 import { Quote } from '@/types/quote';
 import { useQuotes } from '@/contexts/DataContexts';
@@ -106,7 +108,7 @@ export function QuotesTab({ project }: QuotesTabProps) {
           {projectQuotes.map((quote) => {
             const amount = pickNumber(quote as any, ['totalAmount', 'total_amount'], 0);
             const created = toDate((quote as any).createdAt ?? quote.created_at);
-            const pdf = (quote as any).pdfUrl ?? quote.pdf_url;
+            const pdf = quoteFileRef(quote as any);
             return (
               <li key={quote.id} className="rounded-lg border border-spaceAccent/25 bg-space1/50 p-3">
                 <div className="flex items-center justify-between gap-2">
@@ -130,7 +132,7 @@ export function QuotesTab({ project }: QuotesTabProps) {
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {pdf && (
                     <Button size="sm" variant="outline" className="border-spaceAccent/40 bg-space2 text-spaceText"
-                      onClick={() => window.open(pdf, '_blank')}>
+                      onClick={() => openStoredFile(pdf).catch(() => toast.error('Could not open the quote.'))}>
                       <FileText className="mr-1 h-3.5 w-3.5" /> PDF
                     </Button>
                   )}

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/firebase/firebaseConfig';
+import { uploadFile } from '@/lib/storage-client';
+import { db } from '@/firebase/firebaseConfig';
 import { logActivity } from '@/lib/activity';
 import { DocumentType } from '@/types/document';
 import { Project } from '@/types/project';
@@ -58,11 +58,10 @@ export function UploadDocumentModal({ project, trigger, onUploaded }: UploadDocu
 
     setUploading(true);
     try {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const storagePath = `documents/projects/${project.id}/${Date.now()}_${safeName}`;
-      const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, file);
-      const fileUrl = await getDownloadURL(storageRef);
+      // Only the path is stored. Viewing goes through a signed URL issued at
+      // click time, so access stays revocable instead of living in a permanent
+      // link that anyone who has seen it keeps forever.
+      const storagePath = await uploadFile(file, 'documents');
 
       if (docType === 'quote') {
         await addDoc(collection(db, 'quotes'), {
@@ -71,19 +70,18 @@ export function UploadDocumentModal({ project, trigger, onUploaded }: UploadDocu
           projectType: project.projectType,
           totalAmount: amount ? Number(amount) : 0,
           status,
-          pdfUrl: fileUrl,
+          pdfPath: storagePath,
           source: 'uploaded',
           createdAt: serverTimestamp(),
         });
       } else if (docType === 'agreement') {
         await updateDoc(doc(db, 'projects', project.id), {
-          agreementUrl: fileUrl,
+          agreementPath: storagePath,
           agreementStatus: 'signed',
         });
         await addDoc(collection(db, 'documents'), {
           name: file.name,
           type: docType,
-          fileUrl,
           storagePath,
           linkedType: 'project',
           linkedId: project.id,
@@ -93,7 +91,6 @@ export function UploadDocumentModal({ project, trigger, onUploaded }: UploadDocu
         await addDoc(collection(db, 'documents'), {
           name: file.name,
           type: docType,
-          fileUrl,
           storagePath,
           linkedType: 'project',
           linkedId: project.id,

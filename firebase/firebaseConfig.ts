@@ -3,7 +3,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, EmailAuthProvider } from "firebase/auth";
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDeG-s_7ejLRvvSWIPJ0sKrfotQktU8KbA",
@@ -18,6 +17,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
-export { auth, EmailAuthProvider, db, storage}
+// No storage export: Cloud Storage rules deny the browser outright, and every
+// upload, download and delete is brokered by /api/storage instead.
+export { auth, EmailAuthProvider, db }
