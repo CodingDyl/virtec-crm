@@ -38,3 +38,6 @@ next-env.d.ts
 # agent tooling / brainstorm artifacts
 .superpowers/
 .claude/
+
+.env
+.env.local
