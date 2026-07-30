@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Customer } from '@/types/customer';
 import { Project } from '@/types/project';
@@ -9,9 +9,12 @@ import { Quote } from '@/types/quote';
 import { Expense } from '@/types/expense';
 import { Product } from '@/types/product';
 import { MaintenanceInvoice } from '@/types/maintenance';
+import { FollowUp } from '@/types/follow-up';
 import { normalizeQuote, pickNumber, toDate } from '@/lib/firestore-schema';
 import { normalizeExpense } from '@/lib/expenses';
 import { normalizeMaintenanceInvoice } from '@/lib/maintenance';
+import { FOLLOW_UP_COLLECTION, isFollowUpCurrentlyOpen, normalizeFollowUp, effectiveDueDate } from '@/lib/follow-ups';
+import { logActivity } from '@/lib/activity';
 
 // Quotes Context
 interface QuotesContextType {
@@ -335,6 +338,177 @@ export function MaintenanceInvoicesProvider({ children }: { children: React.Reac
 export function useMaintenanceInvoices() {
   const context = useContext(MaintenanceInvoicesContext);
   if (!context) throw new Error('useMaintenanceInvoices must be used within MaintenanceInvoicesProvider');
+  return context;
+}
+
+// Follow-ups Context
+interface FollowUpsContextType {
+  followUps: FollowUp[];
+  openFollowUps: FollowUp[];
+  dueTodayFollowUps: FollowUp[];
+  overdueFollowUps: FollowUp[];
+  upcomingFollowUps: FollowUp[];
+  doneFollowUps: FollowUp[];
+  isLoading: boolean;
+  lastUpdated: Date | null;
+  refreshData: () => Promise<void>;
+  markFollowUpSent: (followUpId: string) => Promise<void>;
+  dismissFollowUp: (followUpId: string) => Promise<void>;
+  snoozeFollowUp: (followUpId: string, days: 1 | 3 | 7) => Promise<void>;
+}
+
+const FollowUpsContext = createContext<FollowUpsContextType | undefined>(undefined);
+
+function startOfToday(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function FollowUpsProvider({ children }: { children: React.ReactNode }) {
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, FOLLOW_UP_COLLECTION),
+      (snapshot) => {
+        const rows = snapshot.docs.map((item) => normalizeFollowUp(item.id, item.data()));
+        rows.sort((a, b) => {
+          const dueA = effectiveDueDate(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          const dueB = effectiveDueDate(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          return dueA - dueB;
+        });
+        setFollowUps(rows);
+        setLastUpdated(new Date());
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('follow_ups snapshot error', error);
+        setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  const logFollowUpAction = async (followUp: FollowUp, type: string, message: string) => {
+    const refType = followUp.projectId ? 'project' : followUp.customerId ? 'customer' : null;
+    const refId = followUp.projectId ?? followUp.customerId;
+    if (!refType || !refId) return;
+    await logActivity(refType, refId, type, message);
+  };
+
+  const markFollowUpSent = async (followUpId: string) => {
+    const followUp = followUps.find((item) => item.id === followUpId);
+    await updateDoc(doc(db, FOLLOW_UP_COLLECTION, followUpId), {
+      status: 'sent',
+      lastSentAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    if (followUp) {
+      await logFollowUpAction(followUp, 'follow_up', `Follow-up marked done: ${followUp.reason}`);
+    }
+  };
+
+  const dismissFollowUp = async (followUpId: string) => {
+    const followUp = followUps.find((item) => item.id === followUpId);
+    await updateDoc(doc(db, FOLLOW_UP_COLLECTION, followUpId), {
+      status: 'dismissed',
+      updatedAt: serverTimestamp(),
+    });
+    if (followUp) {
+      await logFollowUpAction(followUp, 'follow_up', `Follow-up dismissed: ${followUp.reason}`);
+    }
+  };
+
+  const snoozeFollowUp = async (followUpId: string, days: 1 | 3 | 7) => {
+    const followUp = followUps.find((item) => item.id === followUpId);
+    const snoozedUntil = addDays(new Date(), days);
+    await updateDoc(doc(db, FOLLOW_UP_COLLECTION, followUpId), {
+      status: 'snoozed',
+      snoozedUntil: Timestamp.fromDate(snoozedUntil),
+      updatedAt: serverTimestamp(),
+    });
+    if (followUp) {
+      await logFollowUpAction(followUp, 'follow_up', `Follow-up snoozed for ${days} day${days === 1 ? '' : 's'}: ${followUp.reason}`);
+    }
+  };
+
+  const now = new Date();
+  const today = startOfToday(now);
+  const tomorrow = addDays(today, 1);
+
+  const openFollowUps = useMemo(
+    () => followUps.filter((item) => isFollowUpCurrentlyOpen(item, now)),
+    [followUps]
+  );
+
+  const dueTodayFollowUps = useMemo(
+    () => openFollowUps.filter((item) => {
+      const due = effectiveDueDate(item);
+      return Boolean(due && due >= today && due < tomorrow);
+    }),
+    [openFollowUps, today, tomorrow]
+  );
+
+  const overdueFollowUps = useMemo(
+    () => openFollowUps.filter((item) => {
+      const due = effectiveDueDate(item);
+      return Boolean(due && due < today);
+    }),
+    [openFollowUps, today]
+  );
+
+  const upcomingFollowUps = useMemo(
+    () => openFollowUps.filter((item) => {
+      const due = effectiveDueDate(item);
+      return Boolean(due && due >= tomorrow);
+    }),
+    [openFollowUps, tomorrow]
+  );
+
+  const doneFollowUps = useMemo(
+    () => followUps
+      .filter((item) => item.status === 'sent' || item.status === 'dismissed')
+      .slice(0, 50),
+    [followUps]
+  );
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
+
+  return (
+    <FollowUpsContext.Provider
+      value={{
+        followUps,
+        openFollowUps,
+        dueTodayFollowUps,
+        overdueFollowUps,
+        upcomingFollowUps,
+        doneFollowUps,
+        isLoading,
+        lastUpdated,
+        refreshData,
+        markFollowUpSent,
+        dismissFollowUp,
+        snoozeFollowUp,
+      }}
+    >
+      {children}
+    </FollowUpsContext.Provider>
+  );
+}
+
+export function useFollowUps() {
+  const context = useContext(FollowUpsContext);
+  if (!context) throw new Error('useFollowUps must be used within FollowUpsProvider');
   return context;
 }
 

@@ -11,6 +11,9 @@ const Navbar = dynamic(() => import('./custom-ui/navbar'), {
 const Workspace = dynamic(() => import('./custom-ui/workspace/Workspace'), {
   loading: () => <div>Loading...</div>
 })
+const FollowUpsSection = dynamic(() => import('./custom-ui/follow-ups/FollowUpsSection'), {
+  loading: () => <div>Loading...</div>
+})
 const OverviewSection = dynamic(() => import('./custom-ui/overview-section'), {
   loading: () => <div>Loading...</div>
 })
@@ -60,6 +63,7 @@ export function Dashboard() {
             <TabsList className='h-auto w-full justify-start gap-1 overflow-x-auto whitespace-nowrap bg-space2/70 text-spaceText'>
               <TabsTrigger value="overview" onClick={() => setActiveTab('overview')}>Overview</TabsTrigger>
               <TabsTrigger value="workspace" onClick={() => setActiveTab('workspace')}>Workspace</TabsTrigger>
+              <TabsTrigger value="follow-ups" onClick={() => setActiveTab('follow-ups')}>Follow-ups</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')}>Quotes</TabsTrigger>
               <TabsTrigger value="expenses" onClick={() => setActiveTab('expenses')}>Expenses</TabsTrigger>
               <TabsTrigger value="products" onClick={() => setActiveTab('products')}>Products</TabsTrigger>
@@ -75,6 +79,9 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="workspace" className="space-y-4">
               <Workspace />
+            </TabsContent>
+            <TabsContent value="follow-ups" className="space-y-4">
+              <FollowUpsSection />
             </TabsContent>
             <TabsContent value="generate-quote" className="space-y-4">
               <GenerateQuote />
