@@ -48,6 +48,18 @@ service cloud.firestore {
     match /passwords/{id}            { allow read, write: if isOperator(); }
     match /recovery_codes/{id}       { allow read, write: if isOperator(); }
 
+    // ── System state ────────────────────────────────────────────────────────
+    // Sequence counters behind human-facing document numbers (VRT-YYYY-NNNN).
+    // Allocated by a client transaction that reads the counter and writes the
+    // incremented value back, so operators need both. Listing is denied
+    // because nothing enumerates this collection, and delete is denied
+    // because dropping a counter would restart numbering and reissue
+    // invoice numbers that have already gone out to customers.
+    match /system_counters/{id} {
+      allow get, create, update: if isOperator();
+      allow list, delete: if false;
+    }
+
     // Anything not named above is denied. A new collection stays unreachable
     // from the browser until it is added here on purpose.
     match /{document=**} {
