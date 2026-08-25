@@ -88,6 +88,46 @@ export default function MaintenanceInvoice() {
       return `VRT-${currentYear}-${String(nextNumber).padStart(4, '0')}`;
     });
   };
+
+  /**
+   * Hand an allocated number back when the invoice it was minted for never
+   * lands. The number has to be allocated before the PDF is rendered, because
+   * the PDF prints it — so every step after allocation is a chance to strand
+   * one.
+   *
+   * Only the most recent allocation can be released. If another invoice has
+   * taken a number in the meantime, rolling back would re-issue this one, so
+   * the number stays spent and the sequence keeps a gap. A gap is harmless; a
+   * duplicate invoice number is not.
+   */
+  const releaseInvoiceNumber = async (invoiceNumber: string): Promise<void> => {
+    const parsed = invoiceNumber.match(/^VRT-(\d{4})-(\d+)$/);
+    if (!parsed) return;
+
+    const year = Number(parsed[1]);
+    const seq = Number(parsed[2]);
+    const counterRef = doc(db, "system_counters", "maintenance_invoice");
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(counterRef);
+        const data = snap.data() as { year?: number; lastNumber?: number } | undefined;
+
+        if (data?.year !== year || data?.lastNumber !== seq) return;
+
+        transaction.set(counterRef, {
+          year,
+          lastNumber: seq - 1,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      });
+    } catch (error) {
+      // A failed rollback costs nothing but a gap, so it must never replace
+      // the error that actually stopped the invoice.
+      console.error('Could not release invoice number', invoiceNumber, error);
+    }
+  };
+
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
@@ -245,44 +285,51 @@ export default function MaintenanceInvoice() {
         const invoiceRef = doc(collection(db, "maintenance_invoices"));
         const invoiceNumber = await generateInvoiceNumber();
 
-        const pdfResponse = await fetch('/api/maintenance-invoice-pdf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            company: formData.company,
-            date: formData.date.toISOString(),
-            invoiceNumber,
-            customer: {
-              name: customerData.name || '',
-              companyName: customerData.companyName || '',
-              contactNumber: customerData.contactNumber || '',
-            },
-            items: validItems.map((item) => ({
-              title: item.title || '',
-              hours: Number(item.hours) || 0,
-              amount: Number(item.amount) || 0,
-            })),
-            totalAmount,
-          }),
-        });
-        if (!pdfResponse.ok) {
-          throw new Error(`PDF generation failed with status ${pdfResponse.status}`);
-        }
-        const pdfBlob = await pdfResponse.blob();
-        const pdfPath = await uploadFile(pdfBlob, 'invoices', `${invoiceRef.id}_${customerId}_${timestamp}_invoice.pdf`);
+        try {
+          const pdfResponse = await fetch('/api/maintenance-invoice-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              company: formData.company,
+              date: formData.date.toISOString(),
+              invoiceNumber,
+              customer: {
+                name: customerData.name || '',
+                companyName: customerData.companyName || '',
+                contactNumber: customerData.contactNumber || '',
+              },
+              items: validItems.map((item) => ({
+                title: item.title || '',
+                hours: Number(item.hours) || 0,
+                amount: Number(item.amount) || 0,
+              })),
+              totalAmount,
+            }),
+          });
+          if (!pdfResponse.ok) {
+            throw new Error(`PDF generation failed with status ${pdfResponse.status}`);
+          }
+          const pdfBlob = await pdfResponse.blob();
+          const pdfPath = await uploadFile(pdfBlob, 'invoices', `${invoiceRef.id}_${customerId}_${timestamp}_invoice.pdf`);
 
-        await setDoc(invoiceRef, {
-          invoiceNumber,
-          projectId: target.projectId,
-          clientId: customerId,
-          company: formData.company,
-          date: serverTimestamp(),
-          hourlyRate: formData.hourlyRate,
-          items: validItems,
-          totalAmount,
-          pdfPath,
-          status: 'pending'
-        });
+          await setDoc(invoiceRef, {
+            invoiceNumber,
+            projectId: target.projectId,
+            clientId: customerId,
+            company: formData.company,
+            date: serverTimestamp(),
+            hourlyRate: formData.hourlyRate,
+            items: validItems,
+            totalAmount,
+            pdfPath,
+            status: 'pending'
+          });
+        } catch (error) {
+          // Nothing was written for this invoice, so give its number back
+          // rather than leave a permanent hole in the sequence.
+          await releaseInvoiceNumber(invoiceNumber);
+          throw error;
+        }
 
         if (target.projectId) {
           await logActivity(
