@@ -15,6 +15,7 @@ import { normalizeExpense } from '@/lib/expenses';
 import { normalizeMaintenanceInvoice } from '@/lib/maintenance';
 import { FOLLOW_UP_COLLECTION, isFollowUpCurrentlyOpen, normalizeFollowUp, effectiveDueDate } from '@/lib/follow-ups';
 import { logActivity } from '@/lib/activity';
+import { useAuthUid } from '@/hooks/use-auth-uid';
 
 // Quotes Context
 interface QuotesContextType {
@@ -33,7 +34,11 @@ export function QuotesProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     const unsubProjects = onSnapshot(collection(db, "projects"), (snapshot) => {
       const map: Record<string, any> = {};
       snapshot.docs.forEach((doc) => {
@@ -53,7 +58,7 @@ export function QuotesProvider({ children }: { children: React.ReactNode }) {
       unsubProjects();
       unsubQuotes();
     };
-  }, []);
+  }, [uid]);
 
   const projectNames = useMemo(() => {
     const names: Record<string, string> = {};
@@ -96,7 +101,11 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     const unsubscribe = onSnapshot(collection(db, "projects"), (snapshot) => {
       const projectsData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -108,7 +117,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const refreshData = async () => {
     setLastUpdated(new Date());
@@ -149,7 +158,11 @@ export function CustomersProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     const unsubCustomers = onSnapshot(collection(db, "customers"), (snapshot) => {
       setCustomersRaw(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       setLoadedCollections((prev) => ({ ...prev, customers: true }));
@@ -173,7 +186,7 @@ export function CustomersProvider({ children }: { children: React.ReactNode }) {
       unsubProjects();
       unsubQuotes();
     };
-  }, []);
+  }, [uid]);
 
   const customers = useMemo(() => {
     const projectsByClient = new Map<string, string[]>();
@@ -247,7 +260,11 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     // No orderBy in the query (avoids an index); newest-first sorting is client-side.
     const unsubscribe = onSnapshot(
       collection(db, "expenses"),
@@ -265,7 +282,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
     );
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const refreshData = async () => {
     setLastUpdated(new Date());
@@ -304,7 +321,11 @@ export function MaintenanceInvoicesProvider({ children }: { children: React.Reac
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     // No orderBy in the query (avoids an index); newest-first sorting is client-side.
     const unsubscribe = onSnapshot(
       collection(db, 'maintenance_invoices'),
@@ -322,7 +343,7 @@ export function MaintenanceInvoicesProvider({ children }: { children: React.Reac
     );
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const refreshData = async () => {
     setLastUpdated(new Date());
@@ -374,7 +395,11 @@ export function FollowUpsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     const unsubscribe = onSnapshot(
       collection(db, FOLLOW_UP_COLLECTION),
       (snapshot) => {
@@ -395,7 +420,7 @@ export function FollowUpsProvider({ children }: { children: React.ReactNode }) {
     );
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const logFollowUpAction = async (followUp: FollowUp, type: string, message: string) => {
     const refType = followUp.projectId ? 'project' : followUp.customerId ? 'customer' : null;
@@ -528,7 +553,11 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     const unsubscribe = onSnapshot(
       collection(db, 'products'),
       (snapshot) => {
@@ -557,7 +586,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     );
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const refreshData = async () => {
     setLastUpdated(new Date());
@@ -599,7 +628,11 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     const unsubscribe = onSnapshot(collection(db, "subscribers"), (snapshot) => {
       const subscribersData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -611,7 +644,7 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]);
 
   const refreshData = async () => {
     setLastUpdated(new Date());

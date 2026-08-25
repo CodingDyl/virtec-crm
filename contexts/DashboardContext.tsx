@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
+import { useAuthUid } from '@/hooks/use-auth-uid';
 
 interface DashboardData {
   totalRevenue: number;
@@ -68,7 +69,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     customers: false,
   });
 
+  const uid = useAuthUid();
+
   useEffect(() => {
+    if (!uid) return;
+
     const unsubAcceptedQuotes = onSnapshot(
       query(collection(db, "quotes"), where("status", "==", "accepted")),
       (snapshot) => {
@@ -110,7 +115,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       unsubProjects();
       unsubCustomers();
     };
-  }, []);
+  }, [uid]);
 
   const dashboardData = useMemo<DashboardData>(() => {
     const quoteRevenue = acceptedQuotes.reduce((sum, quote) => {
