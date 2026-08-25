@@ -85,15 +85,30 @@ export async function getFileUrl(pathOrUrl: string): Promise<string> {
  * The tab is opened synchronously and its location set once the signed URL
  * arrives — opening it after the await would be blocked as a popup, since the
  * call would no longer be inside the click handler's user gesture.
+ *
+ * `noopener` is deliberately not passed: it makes window.open() return null by
+ * specification, and the handle is the only way to point the tab at the URL
+ * once it arrives. Clearing `opener` on the blank tab — while it is still
+ * same-origin, before it navigates — protects against reverse tabnabbing just
+ * as well, without throwing the reference away.
  */
 export async function openStoredFile(pathOrUrl: string): Promise<void> {
-  const tab = window.open('', '_blank', 'noopener,noreferrer');
+  const tab = window.open('about:blank', '_blank');
+
+  // Navigating the current tab as a fallback would tear the CRM down
+  // mid-session, so a blocked popup is reported instead. Every caller already
+  // turns a rejection into a toast.
+  if (!tab) {
+    throw new Error('Could not open a new tab. Allow pop-ups for this site and try again.');
+  }
+
+  tab.opener = null;
+
   try {
     const url = await getFileUrl(pathOrUrl);
-    if (tab) tab.location.href = url;
-    else window.location.assign(url);
+    tab.location.href = url;
   } catch (error) {
-    tab?.close();
+    tab.close();
     throw error;
   }
 }
