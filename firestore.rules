@@ -35,6 +35,7 @@ service cloud.firestore {
     match /project_tasks/{id}        { allow read, write: if isOperator(); }
     match /design_items/{id}         { allow read, write: if isOperator(); }
     match /activity/{id}             { allow read, write: if isOperator(); }
+    match /follow_ups/{id}           { allow read, write: if isOperator(); }
     match /maintenance_invoices/{id} { allow read, write: if isOperator(); }
     match /expenses/{id}             { allow read, write: if isOperator(); }
     match /subscribers/{id}          { allow read, write: if isOperator(); }
