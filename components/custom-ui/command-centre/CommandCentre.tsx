@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -29,6 +29,11 @@ import { formatZAR, monthlySpendSeries } from '@/lib/expenses';
 import { effectiveDueDate, getFollowUpDisplayMeta } from '@/lib/follow-ups';
 import { invoiceLabel } from '@/lib/maintenance';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
+import { projectsDueSilencePause, silencePausePatch, SILENCE_PAUSE_REASON } from '@/lib/delivery-ops';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { db } from '@/firebase/firebaseConfig';
+import { logActivity } from '@/lib/activity';
+import { toast } from 'sonner';
 
 function formatDate(date: Date | null): string {
   if (!date) return 'No date';
@@ -109,8 +114,15 @@ function SectionCard({
   );
 }
 
-function TodayQueue({ summary }: { summary: CommandCentreSummary }) {
+function TodayQueue({ summary, silenceAlerts }: { summary: CommandCentreSummary; silenceAlerts: string[] }) {
   const derivedActions = [
+    silenceAlerts.length > 0
+      ? {
+          title: 'Pause projects for client silence',
+          detail: silenceAlerts.slice(0, 3).join(' · '),
+          tone: 'bg-red-500/15 text-red-300 border-red-500/40',
+        }
+      : null,
     summary.cash.totalOutstanding > 0
       ? {
           title: 'Chase outstanding maintenance invoices',
@@ -410,6 +422,50 @@ export function CommandCentre() {
 
   const isLoading = dashboardLoading || customersLoading || projectsLoading || quotesLoading || expensesLoading || invoicesLoading || productsLoading || followUpsLoading;
 
+  const silenceEvals = useMemo(() => projectsDueSilencePause(projects), [projects]);
+  const silenceAlerts = useMemo(
+    () => silenceEvals.filter((item) => item.shouldPause || item.silentBusinessDays >= 5).map((item) => item.alert),
+    [silenceEvals]
+  );
+  const appliedSilenceRef = useRef<Set<string>>(new Set());
+
+  // Delivery Ops: auto-pause once a project hits 5 business days of client silence.
+  useEffect(() => {
+    const due = silenceEvals.filter((item) => item.shouldPause && !appliedSilenceRef.current.has(item.project.id));
+    if (due.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const item of due) {
+        if (cancelled) return;
+        appliedSilenceRef.current.add(item.project.id);
+        try {
+          const patch = silencePausePatch();
+          await updateDoc(doc(db, 'projects', item.project.id), {
+            status: patch.status,
+            pausedAt: serverTimestamp(),
+            pauseReason: SILENCE_PAUSE_REASON,
+          });
+          await logActivity(
+            'project',
+            item.project.id,
+            'update',
+            'Auto-paused after 5 business days of client silence'
+          );
+          toast.message(item.alert);
+        } catch (error) {
+          appliedSilenceRef.current.delete(item.project.id);
+          console.error('silence auto-pause failed', item.project.id, error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [silenceEvals]);
+
+
   const summary = useMemo(() => {
     return buildCommandCentreSummary({
       customers,
@@ -484,7 +540,7 @@ export function CommandCentre() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <TodayQueue summary={summary} />
+        <TodayQueue summary={summary} silenceAlerts={silenceAlerts} />
         <CashCollectionPanel summary={summary} />
       </div>
 

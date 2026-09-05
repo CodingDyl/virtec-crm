@@ -258,6 +258,10 @@ export default function MaintenanceInvoice() {
       toast.error("Select at least one maintenance project or customer.");
       return;
     }
+    if (targets.some((t) => !(t.customer.id || '').toString().trim())) {
+      toast.error("Cannot generate invoice without a linked customer (clientId).");
+      return;
+    }
 
     const hasValidItems = formData.items.some((item) => item.title.trim() && item.hours > 0);
     if (!hasValidItems) {
@@ -274,7 +278,11 @@ export default function MaintenanceInvoice() {
       let generatedCount = 0;
 
       for (const target of targets) {
-        const customerId = target.customer.id as string;
+        const customerId = (target.customer.id ?? '').toString().trim();
+        if (!customerId) {
+          failedCustomers.push(target.customer.companyName || target.customer.name || 'unknown');
+          continue;
+        }
         const clientDoc = await getDoc(doc(db, "customers", customerId));
         if (!clientDoc.exists()) {
           failedCustomers.push(customerId);
@@ -314,9 +322,11 @@ export default function MaintenanceInvoice() {
 
           await setDoc(invoiceRef, {
             invoiceNumber,
-            projectId: target.projectId,
+            projectId: target.projectId || '',
+            // Real customer link — required for cash aggregation (never use issuer company as the key).
             clientId: customerId,
-            company: formData.company,
+            clientName: customerData.companyName || customerData.name || '',
+            company: customerData.companyName || formData.company,
             date: serverTimestamp(),
             hourlyRate: formData.hourlyRate,
             items: validItems,

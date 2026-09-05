@@ -1,4 +1,5 @@
 import { MaintenanceFrequency } from './maintenance';
+import { ServiceSkuId } from './service-sku';
 
 export interface Project {
   id: string;
@@ -27,5 +28,13 @@ export interface Project {
   maintenanceFrequency?: MaintenanceFrequency;
   /** Expected charge per billing cycle, in Rand. */
   maintenanceAmount?: number;
-  // ... other existing fields ...
+  /** Virtara recurring SKU: care | seo | bundle */
+  serviceSku?: ServiceSkuId | null;
+  /**
+   * Delivery Ops: when set, the project is blocked waiting on the client.
+   * After 5 business days of silence the clock pauses (status → on-hold).
+   */
+  waitingOnClientSince?: any;
+  pausedAt?: any;
+  pauseReason?: string | null;
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react';
-import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Project } from '@/types/project';
 import { Customer } from '@/types/customer';
@@ -13,6 +13,12 @@ import { logActivity } from '@/lib/activity';
 import { HealthBadges } from './HealthBadges';
 import { ActivityTimeline } from './ActivityTimeline';
 import { ProjectMargin } from './ProjectMargin';
+import {
+  CLIENT_SILENCE_BUSINESS_DAYS,
+  evaluateClientSilence,
+  silencePausePatch,
+  SILENCE_PAUSE_REASON,
+} from '@/lib/delivery-ops';
 
 interface OverviewTabProps {
   project: Project;
@@ -39,6 +45,7 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
   });
   const [saving, setSaving] = useState(false);
   const { quotes } = useQuotes();
+  const silence = evaluateClientSilence(project);
 
   const pendingQuotes = quotes.filter(
     (q) => ((q as any).projectId ?? (q as any).project_id) === project.id && q.status === 'pending'
@@ -93,6 +100,63 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
     } catch (error) {
       console.error('Error updating project:', error);
       toast.error('Failed to update project.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const markWaitingOnClient = async () => {
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'projects', project.id), {
+        waitingOnClientSince: serverTimestamp(),
+      });
+      await logActivity('project', project.id, 'update', 'Marked waiting on client — delivery clock started');
+      toast.success('Waiting on client — clock started.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not start the delivery clock.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clearWaitingOnClient = async () => {
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'projects', project.id), {
+        waitingOnClientSince: null,
+      });
+      await logActivity('project', project.id, 'update', 'Client replied — cleared waiting-on-client clock');
+      toast.success('Client reply recorded — clock cleared.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not clear the delivery clock.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pauseForSilence = async () => {
+    setSaving(true);
+    try {
+      const patch = silencePausePatch();
+      await updateDoc(doc(db, 'projects', project.id), {
+        status: patch.status,
+        pausedAt: serverTimestamp(),
+        pauseReason: SILENCE_PAUSE_REASON,
+      });
+      setForm((prev) => ({ ...prev, status: 'on-hold' }));
+      await logActivity(
+        'project',
+        project.id,
+        'update',
+        'Auto-paused after 5 business days of client silence'
+      );
+      toast.success('Project paused (on-hold) for client silence.');
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not pause the project.');
     } finally {
       setSaving(false);
     }
@@ -168,6 +232,48 @@ export function OverviewTab({ project, customers }: OverviewTabProps) {
             <option value="approved">Approved</option>
             <option value="declined">Declined</option>
           </select>
+        </div>
+      </div>
+
+      <div className="space-y-2 rounded-lg border border-spaceAccent/20 bg-space1/40 p-3">
+        <p className="text-sm font-semibold text-spaceText">Delivery clock</p>
+        <p className="text-xs text-spaceAlt/80">
+          Delivery Ops: after {CLIENT_SILENCE_BUSINESS_DAYS} business days of client silence on a blocker, pause the project.
+        </p>
+        {silence ? (
+          <p className={`text-xs ${silence.silentBusinessDays >= CLIENT_SILENCE_BUSINESS_DAYS ? 'text-red-300' : 'text-orange-200'}`}>
+            Waiting since {silence.waitingSince.toLocaleDateString('en-ZA')} · {silence.silentBusinessDays} business day{silence.silentBusinessDays === 1 ? '' : 's'} silent
+          </p>
+        ) : (
+          <p className="text-xs text-spaceAlt/70">Not currently waiting on the client.</p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-spaceAccent/40 bg-space2 text-spaceText"
+            disabled={saving || Boolean(project.waitingOnClientSince)}
+            onClick={markWaitingOnClient}
+          >
+            Mark waiting on client
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-spaceAccent/40 bg-space2 text-spaceText"
+            disabled={saving || !project.waitingOnClientSince}
+            onClick={clearWaitingOnClient}
+          >
+            Client replied
+          </Button>
+          <Button
+            type="button"
+            className="bg-yellow-600 text-white hover:bg-yellow-700"
+            disabled={saving || !silence?.shouldPause}
+            onClick={pauseForSilence}
+          >
+            Pause for silence
+          </Button>
         </div>
       </div>
 
