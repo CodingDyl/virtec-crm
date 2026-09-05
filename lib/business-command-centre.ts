@@ -147,8 +147,7 @@ export function calculateCashToCollect(
   const unlinkedInvoices: MaintenanceInvoice[] = [];
 
   unpaidInvoices.forEach((invoice) => {
-    // Never key cash by issuer `company` (Virtara etc.) — only a real customer id.
-    const customerId = resolveInvoiceClientId(invoice, projectsById);
+    const customerId = resolveInvoiceClientId(invoice, projectsById, customers);
     if (!customerId) {
       unlinkedAmount += invoice.totalAmount;
       unlinkedInvoices.push(invoice);
@@ -159,6 +158,7 @@ export function calculateCashToCollect(
     const customerName =
       customer?.companyName ||
       customer?.name ||
+      (invoice as MaintenanceInvoice & { clientName?: string }).clientName ||
       projectsById.get(invoice.projectId)?.clientName ||
       'Unknown customer';
     const issuedAt = toDate(invoice.date);
@@ -173,6 +173,7 @@ export function calculateCashToCollect(
 
     topCustomersMap.set(customerId, {
       ...current,
+      customerName: current.customerName === 'Unknown customer' ? customerName : current.customerName,
       amount: current.amount + invoice.totalAmount,
       invoiceCount: current.invoiceCount + 1,
       oldestInvoiceDate:
@@ -202,18 +203,20 @@ export function calculateCashToCollect(
     return (toDate(a.date)?.getTime() ?? Number.MAX_SAFE_INTEGER) - (toDate(b.date)?.getTime() ?? Number.MAX_SAFE_INTEGER);
   })[0] ?? null;
 
+  const ranked = [...topCustomersMap.values()].sort((a, b) => {
+    const aUnlinked = a.customerId === '__unlinked__' ? 1 : 0;
+    const bUnlinked = b.customerId === '__unlinked__' ? 1 : 0;
+    if (aUnlinked !== bUnlinked) return aUnlinked - bUnlinked;
+    const byDate = (a.oldestInvoiceDate?.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.oldestInvoiceDate?.getTime() ?? Number.MAX_SAFE_INTEGER);
+    return byDate || b.amount - a.amount;
+  });
+
   return {
     totalOutstanding: unpaidInvoices.reduce((sum, invoice) => sum + invoice.totalAmount, 0),
     oldestOverdueInvoice,
-    topCustomers: [...topCustomersMap.values()]
-      .sort((a, b) => {
-        const byDate = (a.oldestInvoiceDate?.getTime() ?? Number.MAX_SAFE_INTEGER) - (b.oldestInvoiceDate?.getTime() ?? Number.MAX_SAFE_INTEGER);
-        return byDate || b.amount - a.amount;
-      })
-      .slice(0, 5),
+    topCustomers: ranked.slice(0, 5),
   };
 }
-
 export function calculateFollowUpSummary(followUps: FollowUp[], now = new Date()): FollowUpSummary {
   const openFollowUps = followUps.filter((followUp) => isFollowUpCurrentlyOpen(followUp, now));
   const todayKey = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();

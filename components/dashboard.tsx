@@ -29,6 +29,9 @@ const ExpensesSection = dynamic(() => import('./custom-ui/expenses-section'), {
 const ProductsSection = dynamic(() => import('./custom-ui/products/ProductsSection'), {
   loading: () => <div>Loading...</div>
 })
+const ServiceSkusCard = dynamic(() => import('./custom-ui/products/ServiceSkusCard'), {
+  loading: () => <div>Loading...</div>
+})
 const Subscriptions = dynamic(() => import('./custom-ui/subcriptions'), {
   loading: () => <div>Loading...</div>
 })
@@ -96,6 +99,7 @@ export function Dashboard() {
               <ExpensesSection />
             </TabsContent>
             <TabsContent value="products" className="space-y-4">
+              <ServiceSkusCard />
               <ProductsSection />
             </TabsContent>
             <TabsContent value="subscriptions" className="space-y-4">

@@ -1,12 +1,19 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/firebaseConfig';
 import { Customer } from '@/types/customer';
 import { MaintenanceFrequency } from '@/types/maintenance';
 import { DEFAULT_MAINTENANCE_FREQUENCY, MAINTENANCE_FREQUENCIES } from '@/lib/maintenance';
-import { SERVICE_SKUS, ServiceSkuId, serviceSkuPrice } from '@/lib/service-skus';
+import {
+  SiteKind,
+  ServiceLineId,
+  normalizeSiteKind,
+  computeRetainerMonthly,
+  legacySkuFromLines,
+} from '@/lib/service-skus';
+import { RetainerSkuPicker } from '@/components/custom-ui/RetainerSkuPicker';
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -30,7 +37,8 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
     completion: 0,
     maintenanceFrequency: DEFAULT_MAINTENANCE_FREQUENCY as MaintenanceFrequency,
     maintenanceAmount: 0,
-    serviceSku: '' as '' | ServiceSkuId,
+    siteKind: 'website' as SiteKind,
+    serviceLines: [] as ServiceLineId[],
   });
 
   const isMaintenance = formData.projectType === 'Maintenance';
@@ -58,33 +66,54 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
     fetchCustomers();
   }, []);
 
-  const handleSkuChange = (value: string) => {
-    const sku = (value || '') as '' | ServiceSkuId;
-    const price = sku ? serviceSkuPrice(sku) : 0;
+  useEffect(() => {
+    if (!isMaintenance) return;
+    const kind = normalizeSiteKind(formData.projectType, formData.siteKind);
+    if (kind !== formData.siteKind) {
+      setFormData((prev) => ({ ...prev, siteKind: kind }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.projectType, isMaintenance]);
+
+  const liveTotal = useMemo(
+    () => computeRetainerMonthly(formData.siteKind, formData.serviceLines),
+    [formData.siteKind, formData.serviceLines]
+  );
+
+  useEffect(() => {
+    if (!isMaintenance) return;
     setFormData((prev) => ({
       ...prev,
-      serviceSku: sku,
-      maintenanceAmount: price > 0 ? price : prev.maintenanceAmount,
-      ...(sku ? { maintenanceFrequency: 'monthly' as MaintenanceFrequency } : {}),
+      maintenanceAmount: liveTotal,
+      maintenanceFrequency: prev.serviceLines.length > 0 ? 'monthly' : prev.maintenanceFrequency,
     }));
-  };
+  }, [liveTotal, isMaintenance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const selectedCustomer = customers.find(c => c.id === formData.clientId);
-      const { maintenanceFrequency, maintenanceAmount, serviceSku, ...base } = formData;
+      const {
+        maintenanceFrequency,
+        maintenanceAmount,
+        siteKind,
+        serviceLines,
+        ...base
+      } = formData;
       if (isMaintenance && !formData.clientId) {
         console.error('Maintenance projects require a linked customer');
         return;
       }
+      const legacySku = legacySkuFromLines(serviceLines);
       await addDoc(collection(db, "projects"), {
         ...base,
         ...(isMaintenance
           ? {
-              maintenanceFrequency,
-              maintenanceAmount,
-              ...(serviceSku ? { serviceSku } : {}),
+              maintenanceFrequency: serviceLines.length > 0 ? 'monthly' : maintenanceFrequency,
+              maintenanceAmount: serviceLines.length > 0 ? liveTotal : maintenanceAmount,
+              siteKind,
+              serviceLines,
+              serviceSku: legacySku,
             }
           : {}),
         clientName: selectedCustomer?.companyName,
@@ -102,7 +131,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
       <DialogTrigger asChild>
         <Button variant="default" className="bg-space2 text-spaceText border-spaceAccent border-2 hover:bg-spaceAlt">Add A New Project</Button>
       </DialogTrigger>
-      <DialogContent className="bg-space2 text-spaceText border-spaceAccent">
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-space2 text-spaceText border-spaceAccent">
         <DialogHeader>
           <DialogTitle>Add New Project</DialogTitle>
         </DialogHeader>
@@ -140,58 +169,43 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
             </select>
           </div>
           {isMaintenance && (
-            <div className="grid grid-cols-2 gap-3 rounded-lg border border-spaceAccent/25 bg-space1/40 p-3">
-              <div className="col-span-2">
-                <p className="text-xs uppercase tracking-wide text-spaceAlt/80">Recurring billing</p>
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="serviceSku">Service SKU</Label>
-                <select
-                  id="serviceSku"
-                  value={formData.serviceSku}
-                  onChange={(e) => handleSkuChange(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText focus:outline-hidden focus:ring-2 focus:ring-spaceAccent"
-                >
-                  <option value="">Custom amount</option>
-                  {SERVICE_SKUS.map((sku) => (
-                    <option key={sku.id} value={sku.id}>
-                      {sku.name} — R{sku.monthlyPriceZar.toLocaleString('en-ZA')}/mo
-                    </option>
-                  ))}
-                </select>
-                {formData.serviceSku && (
-                  <p className="mt-1 text-xs text-spaceAlt/70">
-                    {SERVICE_SKUS.find((s) => s.id === formData.serviceSku)?.includes}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="maintenanceFrequency">Payment frequency</Label>
-                <select
-                  id="maintenanceFrequency"
-                  value={formData.maintenanceFrequency}
-                  onChange={(e) => setFormData({ ...formData, maintenanceFrequency: e.target.value as MaintenanceFrequency })}
-                  className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText focus:outline-hidden focus:ring-2 focus:ring-spaceAccent"
-                >
-                  {MAINTENANCE_FREQUENCIES.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="maintenanceAmount">Amount per cycle (R)</Label>
-                <Input
-                  id="maintenanceAmount"
-                  type="text"
-                  inputMode="numeric"
-                  value={formData.maintenanceAmount}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    maintenanceAmount: e.target.value ? Number(e.target.value.replace(/[^0-9.]/g, '')) : 0,
-                    serviceSku: '',
-                  })}
-                  className="bg-space1 border-spaceAccent text-spaceText"
-                />
+            <div className="space-y-3 rounded-lg border border-spaceAccent/25 bg-space1/40 p-3">
+              <p className="text-xs uppercase tracking-wide text-spaceAlt/80">Recurring billing</p>
+              <RetainerSkuPicker
+                siteKind={formData.siteKind}
+                lines={formData.serviceLines}
+                onSiteKindChange={(siteKind) => setFormData((prev) => ({ ...prev, siteKind }))}
+                onLinesChange={(serviceLines) => setFormData((prev) => ({ ...prev, serviceLines }))}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="maintenanceFrequency">Payment frequency</Label>
+                  <select
+                    id="maintenanceFrequency"
+                    value={formData.maintenanceFrequency}
+                    onChange={(e) => setFormData({ ...formData, maintenanceFrequency: e.target.value as MaintenanceFrequency })}
+                    className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText focus:outline-hidden focus:ring-2 focus:ring-spaceAccent"
+                  >
+                    {MAINTENANCE_FREQUENCIES.map((f) => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="maintenanceAmount">Amount per cycle (R)</Label>
+                  <Input
+                    id="maintenanceAmount"
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.serviceLines.length > 0 ? liveTotal : formData.maintenanceAmount}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      maintenanceAmount: e.target.value ? Number(e.target.value.replace(/[^0-9.]/g, '')) : 0,
+                      serviceLines: [],
+                    })}
+                    className="bg-space1 border-spaceAccent text-spaceText"
+                  />
+                </div>
               </div>
             </div>
           )}
