@@ -19,6 +19,7 @@ import {
   nextDueDate,
   summariseMaintenance,
 } from '@/lib/maintenance';
+import { SERVICE_SKUS, getServiceSku, effectiveMaintenanceAmount } from '@/lib/service-skus';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
     project.maintenanceFrequency ?? DEFAULT_MAINTENANCE_FREQUENCY
   );
   const [amount, setAmount] = useState<number>(project.maintenanceAmount ?? 0);
+  const [skuId, setSkuId] = useState<string>(project.serviceSku ?? '');
   const [saving, setSaving] = useState(false);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -53,7 +55,8 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
   // Re-seed when a different maintenance project is selected.
   useEffect(() => {
     setFrequency(project.maintenanceFrequency ?? DEFAULT_MAINTENANCE_FREQUENCY);
-    setAmount(project.maintenanceAmount ?? 0);
+    setAmount(project.maintenanceAmount ?? effectiveMaintenanceAmount(project));
+    setSkuId(project.serviceSku ?? '');
   }, [project.id]);
 
   /** Invoices billed against this project — the one-to-many side of the link. */
@@ -75,7 +78,7 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
   const dueDate = nextDueDate(project.maintenanceFrequency, summary.lastInvoicedAt);
   const overdue = dueDate ? dueDate.getTime() < Date.now() : false;
 
-  const annualRun = (project.maintenanceAmount ?? 0) * cyclesPerYear(project.maintenanceFrequency);
+  const annualRun = effectiveMaintenanceAmount({ maintenanceAmount: amount, serviceSku: skuId || null }) * cyclesPerYear(frequency);
 
   const handleSaveBilling = async () => {
     setSaving(true);
@@ -83,12 +86,14 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
       await updateDoc(doc(db, 'projects', project.id), {
         maintenanceFrequency: frequency,
         maintenanceAmount: amount,
+        serviceSku: skuId || null,
       });
+      const skuLabel = getServiceSku(skuId)?.name;
       await logActivity(
         'project',
         project.id,
         'maintenance',
-        `Maintenance billing set to ${frequencyLabel(frequency)} at ${formatRand(amount)} per cycle`
+        `Maintenance billing set to ${frequencyLabel(frequency)} at ${formatRand(amount)} per cycle${skuLabel ? ` (${skuLabel} SKU)` : ''}`
       );
       toast.success('Billing cycle saved.');
     } catch (error) {
@@ -102,7 +107,9 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
   const handleLink = async (invoice: MaintenanceInvoice) => {
     setLinkingId(invoice.id);
     try {
-      await updateDoc(doc(db, 'maintenance_invoices', invoice.id), { projectId: project.id });
+      const linkPatch: Record<string, string> = { projectId: project.id };
+      if (project.clientId) linkPatch.clientId = project.clientId;
+      await updateDoc(doc(db, 'maintenance_invoices', invoice.id), linkPatch);
       await logActivity(
         'project',
         project.id,
@@ -212,6 +219,31 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
                 <option key={f.value} value={f.value}>{f.label}</option>
               ))}
             </select>
+          </div>
+          <div className="@md:col-span-2">
+            <label htmlFor="maintenance-sku" className="text-sm text-spaceText">Retainer SKU</label>
+            <select
+              id="maintenance-sku"
+              value={skuId}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSkuId(next);
+                const sku = getServiceSku(next);
+                if (sku) {
+                  setAmount(sku.monthlyPriceZar);
+                  setFrequency('monthly');
+                }
+              }}
+              className={`mt-1 ${selectClass}`}
+            >
+              <option value="">Custom amount</option>
+              {SERVICE_SKUS.map((sku) => (
+                <option key={sku.id} value={sku.id}>
+                  {sku.name} — R{sku.monthlyPriceZar.toLocaleString('en-ZA')}/mo
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-spaceAlt/70">Care R1&nbsp;990 · SEO R3&nbsp;990 · Bundle R5&nbsp;490</p>
           </div>
           <div>
             <label htmlFor="maintenance-amount" className="text-sm text-spaceText">Amount per cycle (R)</label>

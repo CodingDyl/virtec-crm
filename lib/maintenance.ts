@@ -64,6 +64,52 @@ export function normalizeMaintenanceInvoice(id: string, data: AnyRecord): Mainte
   };
 }
 
+/** True when the invoice carries a non-empty customer id. */
+export function hasInvoiceCustomerLink(
+  invoice: Pick<MaintenanceInvoice, 'clientId'>
+): boolean {
+  return Boolean((invoice.clientId ?? '').toString().trim());
+}
+
+export function invoiceHasCustomerLink(invoice: Pick<MaintenanceInvoice, 'clientId'>): boolean {
+  return hasInvoiceCustomerLink(invoice);
+}
+
+/**
+ * Resolve a real customer id for an invoice. Prefer the stored clientId; if
+ * missing (legacy), fall back through the linked maintenance project. Never use
+ * `company` — that field is the issuing brand, not the customer.
+ */
+export function resolveInvoiceClientId(
+  invoice: Pick<MaintenanceInvoice, 'clientId' | 'projectId'>,
+  projectsById?: Map<string, Pick<Project, 'id' | 'clientId'>> | Record<string, Pick<Project, 'id' | 'clientId'>>
+): string {
+  const direct = (invoice.clientId ?? '').toString().trim();
+  if (direct) return direct;
+
+  const projectId = (invoice.projectId ?? '').toString().trim();
+  if (!projectId || !projectsById) return '';
+
+  const project =
+    projectsById instanceof Map ? projectsById.get(projectId) : projectsById[projectId];
+  return (project?.clientId ?? '').toString().trim();
+}
+
+/** Patch to write when attaching / repairing an invoice's customer + project link. */
+export function invoiceCustomerLinkPatch(args: {
+  clientId: string;
+  projectId?: string;
+}): { clientId: string; projectId?: string } {
+  const clientId = args.clientId.trim();
+  if (!clientId) {
+    throw new Error('Invoice requires a real customer clientId');
+  }
+  return {
+    clientId,
+    ...(args.projectId ? { projectId: args.projectId } : {}),
+  };
+}
+
 /** Human label for an invoice with no explicit number. */
 export function invoiceLabel(invoice: Pick<MaintenanceInvoice, 'id' | 'invoiceNumber'>): string {
   return invoice.invoiceNumber || `INV-${invoice.id.slice(0, 8).toUpperCase()}`;

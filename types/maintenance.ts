@@ -24,7 +24,12 @@ export interface MaintenanceInvoice {
   invoiceNumber?: string;
   /** The maintenance project this invoice bills against. Empty on legacy records. */
   projectId: string;
+  /**
+   * Required customer link. Cash aggregation and customer views key off this —
+   * never fall back to `company`, which is the issuing entity (Virtara etc.).
+   */
   clientId: string;
+  /** Issuing company / brand on the PDF (Virtara, Three Sixty, …) — not the customer. */
   company: string;
   date: any; // Firestore Timestamp
   hourlyRate: number;

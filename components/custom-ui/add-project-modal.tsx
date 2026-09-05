@@ -6,6 +6,7 @@ import { db } from '@/firebase/firebaseConfig';
 import { Customer } from '@/types/customer';
 import { MaintenanceFrequency } from '@/types/maintenance';
 import { DEFAULT_MAINTENANCE_FREQUENCY, MAINTENANCE_FREQUENCIES } from '@/lib/maintenance';
+import { SERVICE_SKUS, ServiceSkuId, serviceSkuPrice } from '@/lib/service-skus';
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,7 +17,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PlusCircle } from "lucide-react"
 
 export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void }) {
   const [open, setOpen] = useState(false)
@@ -30,6 +30,7 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
     completion: 0,
     maintenanceFrequency: DEFAULT_MAINTENANCE_FREQUENCY as MaintenanceFrequency,
     maintenanceAmount: 0,
+    serviceSku: '' as '' | ServiceSkuId,
   });
 
   const isMaintenance = formData.projectType === 'Maintenance';
@@ -57,15 +58,35 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
     fetchCustomers();
   }, []);
 
+  const handleSkuChange = (value: string) => {
+    const sku = (value || '') as '' | ServiceSkuId;
+    const price = sku ? serviceSkuPrice(sku) : 0;
+    setFormData((prev) => ({
+      ...prev,
+      serviceSku: sku,
+      maintenanceAmount: price > 0 ? price : prev.maintenanceAmount,
+      ...(sku ? { maintenanceFrequency: 'monthly' as MaintenanceFrequency } : {}),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const selectedCustomer = customers.find(c => c.id === formData.clientId);
-      const { maintenanceFrequency, maintenanceAmount, ...base } = formData;
+      const { maintenanceFrequency, maintenanceAmount, serviceSku, ...base } = formData;
+      if (isMaintenance && !formData.clientId) {
+        console.error('Maintenance projects require a linked customer');
+        return;
+      }
       await addDoc(collection(db, "projects"), {
         ...base,
-        // Only maintenance projects carry a billing cycle.
-        ...(isMaintenance ? { maintenanceFrequency, maintenanceAmount } : {}),
+        ...(isMaintenance
+          ? {
+              maintenanceFrequency,
+              maintenanceAmount,
+              ...(serviceSku ? { serviceSku } : {}),
+            }
+          : {}),
         clientName: selectedCustomer?.companyName,
         createdAt: serverTimestamp()
       });
@@ -123,6 +144,27 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
               <div className="col-span-2">
                 <p className="text-xs uppercase tracking-wide text-spaceAlt/80">Recurring billing</p>
               </div>
+              <div className="col-span-2">
+                <Label htmlFor="serviceSku">Service SKU</Label>
+                <select
+                  id="serviceSku"
+                  value={formData.serviceSku}
+                  onChange={(e) => handleSkuChange(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-spaceAccent bg-space1 px-3 py-2 text-spaceText focus:outline-hidden focus:ring-2 focus:ring-spaceAccent"
+                >
+                  <option value="">Custom amount</option>
+                  {SERVICE_SKUS.map((sku) => (
+                    <option key={sku.id} value={sku.id}>
+                      {sku.name} — R{sku.monthlyPriceZar.toLocaleString('en-ZA')}/mo
+                    </option>
+                  ))}
+                </select>
+                {formData.serviceSku && (
+                  <p className="mt-1 text-xs text-spaceAlt/70">
+                    {SERVICE_SKUS.find((s) => s.id === formData.serviceSku)?.includes}
+                  </p>
+                )}
+              </div>
               <div>
                 <Label htmlFor="maintenanceFrequency">Payment frequency</Label>
                 <select
@@ -143,7 +185,11 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
                   type="text"
                   inputMode="numeric"
                   value={formData.maintenanceAmount}
-                  onChange={(e) => setFormData({ ...formData, maintenanceAmount: e.target.value ? Number(e.target.value.replace(/[^0-9.]/g, '')) : 0 })}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    maintenanceAmount: e.target.value ? Number(e.target.value.replace(/[^0-9.]/g, '')) : 0,
+                    serviceSku: '',
+                  })}
                   className="bg-space1 border-spaceAccent text-spaceText"
                 />
               </div>
@@ -196,4 +242,4 @@ export function AddProjectModal({ onProjectAdded }: { onProjectAdded: () => void
       </DialogContent>
     </Dialog>
   )
-} 
+}

@@ -9,6 +9,8 @@ import { Customer } from '@/types/customer';
 import { grossAmount, isWithin, monthRange, monthlyEquivalent } from '@/lib/expenses';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
 import { cyclesPerYear, isMaintenanceProject, nextDueDate } from '@/lib/maintenance';
+import { effectiveMaintenanceAmount } from '@/lib/service-skus';
+import { CLIENT_SILENCE_BUSINESS_DAYS, evaluateClientSilence } from '@/lib/delivery-ops';
 import { effectiveDueDate, isFollowUpCurrentlyOpen } from '@/lib/follow-ups';
 
 type AnyRecord = Record<string, any>;
@@ -132,13 +134,20 @@ function companyKey(value?: string | null): string {
   return (value ?? '').trim().toLowerCase();
 }
 
-export function calculateCashToCollect(invoices: MaintenanceInvoice[]): CashToCollectSummary {
+export function calculateCashToCollect(
+  invoices: MaintenanceInvoice[],
+  customers: Customer[] = []
+): CashToCollectSummary {
   const unpaidInvoices = invoices.filter((invoice) => invoice.status !== 'paid');
+  const customersById = new Map(customers.filter((c) => c.id).map((c) => [c.id as string, c]));
   const topCustomersMap = new Map<string, CashCollectionCustomer>();
 
   unpaidInvoices.forEach((invoice) => {
-    const customerId = invoice.clientId || invoice.company || 'unknown';
-    const customerName = invoice.company || 'Unknown customer';
+    const customerId = (invoice.clientId || '').trim();
+    if (!customerId) return; // unlinked invoices excluded from customer buckets (still in total)
+    const customer = customersById.get(customerId);
+    const customerName =
+      customer?.companyName || customer?.name || invoice.company || 'Unknown customer';
     const issuedAt = toDate(invoice.date);
     const current = topCustomersMap.get(customerId) ?? {
       customerId,
@@ -243,14 +252,16 @@ export function calculateMonthlyRecurringMaintenance(
     }, null);
     const dueAt = nextDueDate(project.maintenanceFrequency, latestInvoiceDate);
     const isUpcoming = dueAt && differenceInCalendarDays(dueAt, now) >= 0 && differenceInCalendarDays(dueAt, now) <= 14;
-    return isUpcoming ? [{ project, dueAt, amount: project.maintenanceAmount ?? 0 }] : [];
+    return isUpcoming ? [{ project, dueAt, amount: effectiveMaintenanceAmount(project) }] : [];
   });
 
   return {
     monthlyRecurringRevenue: maintenanceProjects.reduce((sum, project) => {
-      return sum + ((project.maintenanceAmount ?? 0) * cyclesPerYear(project.maintenanceFrequency)) / 12;
+      return sum + (effectiveMaintenanceAmount(project) * cyclesPerYear(project.maintenanceFrequency)) / 12;
     }, 0),
-    activeMaintenanceCustomers: new Set(maintenanceProjects.map((project) => project.clientId || project.clientName)).size,
+    activeMaintenanceCustomers: new Set(
+      maintenanceProjects.map((project) => (project.clientId || '').trim()).filter(Boolean)
+    ).size,
     upcomingInvoices: upcomingInvoices.sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime()).slice(0, 5),
     overdueInvoiceCount: invoices.filter((invoice) => invoice.status !== 'paid' && toDate(invoice.date) && differenceInCalendarDays(now, toDate(invoice.date) as Date) >= 7).length,
   };
@@ -306,17 +317,26 @@ export function calculateProjectRisks(projects: Project[], quotes: Quote[], expe
       if (amountAtRisk > 0 && expensesTotal / amountAtRisk >= 0.7) reasons.push('Costs exceed 70% of project value');
       if (agreement !== 'signed' && agreement !== 'approved') reasons.push('Agreement not approved');
 
+      const silence = evaluateClientSilence(project, now);
+      if (silence && silence.silentBusinessDays >= CLIENT_SILENCE_BUSINESS_DAYS) {
+        reasons.push(`Client silence ${silence.silentBusinessDays} business days — pause delivery`);
+      } else if (silence && silence.silentBusinessDays > 0) {
+        reasons.push(`Waiting on client (${silence.silentBusinessDays} business day${silence.silentBusinessDays === 1 ? '' : 's'})`);
+      }
+
       if (reasons.length === 0) return null;
 
       return {
         project,
         reasons,
         amountAtRisk,
-        suggestedAction: reasons.includes('Costs exceed 70% of project value')
-          ? 'Review scope, logged costs, and any client-rebillable expenses.'
-          : reasons.includes('Agreement not approved')
-            ? 'Get the agreement approved before more delivery work continues.'
-            : 'Confirm the blocker and log the next client or delivery action.',
+        suggestedAction: reasons.some((reason) => reason.includes('Client silence'))
+          ? 'Auto-pause the project (on-hold) — Delivery Ops: 5 business days of client silence.'
+          : reasons.includes('Costs exceed 70% of project value')
+            ? 'Review scope, logged costs, and any client-rebillable expenses.'
+            : reasons.includes('Agreement not approved')
+              ? 'Get the agreement approved before more delivery work continues.'
+              : 'Confirm the blocker and log the next client or delivery action.',
       };
     })
     .filter((risk): risk is ProjectRisk => Boolean(risk))
@@ -405,7 +425,10 @@ export function calculateGrowthOpportunities(
         id: `quarterly-review:${customer.id ?? customer.companyName}`,
         title: 'Book a quarterly account review',
         customerName: customerLabel(customer),
-        estimatedValue: maintenanceProjects.reduce((sum, project) => sum + (project.maintenanceAmount ?? 0), 0),
+        estimatedValue: maintenanceProjects.reduce(
+          (sum, project) => sum + effectiveMaintenanceAmount(project),
+          0
+        ),
         suggestedAction: 'Review site performance, new compliance needs, and small improvements.',
       });
     }
@@ -461,7 +484,7 @@ export function buildCommandCentreSummary(args: {
   const pipeline = calculatePipelineSummary(args.quotes, now);
 
   return {
-    cash: calculateCashToCollect(args.invoices),
+    cash: calculateCashToCollect(args.invoices, args.customers),
     followUps: calculateFollowUpSummary(args.followUps, now),
     activeProjectValue: calculateActiveProjectValue(args.projects, args.quotes, now),
     maintenance: calculateMonthlyRecurringMaintenance(args.projects, args.invoices, now),
