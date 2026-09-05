@@ -8,7 +8,7 @@ import { Quote } from '@/types/quote';
 import { Customer } from '@/types/customer';
 import { grossAmount, isWithin, monthRange, monthlyEquivalent } from '@/lib/expenses';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
-import { cyclesPerYear, isMaintenanceProject, nextDueDate } from '@/lib/maintenance';
+import { cyclesPerYear, isMaintenanceProject, nextDueDate, resolveInvoiceClientId } from '@/lib/maintenance';
 import { effectiveMaintenanceAmount } from '@/lib/service-skus';
 import { CLIENT_SILENCE_BUSINESS_DAYS, evaluateClientSilence } from '@/lib/delivery-ops';
 import { effectiveDueDate, isFollowUpCurrentlyOpen } from '@/lib/follow-ups';
@@ -136,18 +136,31 @@ function companyKey(value?: string | null): string {
 
 export function calculateCashToCollect(
   invoices: MaintenanceInvoice[],
-  customers: Customer[] = []
+  customers: Customer[] = [],
+  projects: Project[] = []
 ): CashToCollectSummary {
   const unpaidInvoices = invoices.filter((invoice) => invoice.status !== 'paid');
   const customersById = new Map(customers.filter((c) => c.id).map((c) => [c.id as string, c]));
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
   const topCustomersMap = new Map<string, CashCollectionCustomer>();
+  let unlinkedAmount = 0;
+  const unlinkedInvoices: MaintenanceInvoice[] = [];
 
   unpaidInvoices.forEach((invoice) => {
-    const customerId = (invoice.clientId || '').trim();
-    if (!customerId) return; // unlinked invoices excluded from customer buckets (still in total)
+    // Never key cash by issuer `company` (Virtara etc.) — only a real customer id.
+    const customerId = resolveInvoiceClientId(invoice, projectsById);
+    if (!customerId) {
+      unlinkedAmount += invoice.totalAmount;
+      unlinkedInvoices.push(invoice);
+      return;
+    }
+
     const customer = customersById.get(customerId);
     const customerName =
-      customer?.companyName || customer?.name || invoice.company || 'Unknown customer';
+      customer?.companyName ||
+      customer?.name ||
+      projectsById.get(invoice.projectId)?.clientName ||
+      'Unknown customer';
     const issuedAt = toDate(invoice.date);
     const current = topCustomersMap.get(customerId) ?? {
       customerId,
@@ -169,6 +182,21 @@ export function calculateCashToCollect(
       invoices: [...current.invoices, invoice],
     });
   });
+
+  if (unlinkedInvoices.length > 0) {
+    const oldestUnlinked = unlinkedInvoices.reduce<Date | null>((oldest, invoice) => {
+      const issuedAt = toDate(invoice.date);
+      return issuedAt && (!oldest || issuedAt < oldest) ? issuedAt : oldest;
+    }, null);
+    topCustomersMap.set('__unlinked__', {
+      customerId: '__unlinked__',
+      customerName: 'Unlinked invoices (missing customer)',
+      amount: unlinkedAmount,
+      invoiceCount: unlinkedInvoices.length,
+      oldestInvoiceDate: oldestUnlinked,
+      invoices: unlinkedInvoices,
+    });
+  }
 
   const oldestOverdueInvoice = [...unpaidInvoices].sort((a, b) => {
     return (toDate(a.date)?.getTime() ?? Number.MAX_SAFE_INTEGER) - (toDate(b.date)?.getTime() ?? Number.MAX_SAFE_INTEGER);
@@ -484,7 +512,7 @@ export function buildCommandCentreSummary(args: {
   const pipeline = calculatePipelineSummary(args.quotes, now);
 
   return {
-    cash: calculateCashToCollect(args.invoices, args.customers),
+    cash: calculateCashToCollect(args.invoices, args.customers, args.projects),
     followUps: calculateFollowUpSummary(args.followUps, now),
     activeProjectValue: calculateActiveProjectValue(args.projects, args.quotes, now),
     maintenance: calculateMonthlyRecurringMaintenance(args.projects, args.invoices, now),
