@@ -10,6 +10,7 @@ import { Expense } from '@/types/expense';
 import { Product } from '@/types/product';
 import { MaintenanceInvoice } from '@/types/maintenance';
 import { FollowUp } from '@/types/follow-up';
+import { LocalLead, LOCAL_LEADS_COLLECTION, LocalLeadStatus } from '@/types/local-lead';
 import { normalizeQuote, pickNumber, toDate } from '@/lib/firestore-schema';
 import { normalizeExpense } from '@/lib/expenses';
 import { normalizeMaintenanceInvoice } from '@/lib/maintenance';
@@ -660,5 +661,124 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
 export function useSubscriptions() {
   const context = useContext(SubscriptionsContext);
   if (!context) throw new Error('useSubscriptions must be used within SubscriptionsProvider');
+  return context;
+}
+
+
+// Local Leads Context
+interface LocalLeadsContextType {
+  localLeads: LocalLead[];
+  isLoading: boolean;
+  refreshData: () => Promise<void>;
+  lastUpdated: Date | null;
+  updateLeadStatus: (leadId: string, status: LocalLeadStatus, extra?: { customerId?: string }) => Promise<void>;
+}
+
+const LocalLeadsContext = createContext<LocalLeadsContextType | undefined>(undefined);
+
+function normalizeLocalLead(id: string, data: Record<string, any>): LocalLead {
+  const scoreRaw = typeof data.score === 'number' ? data.score : Number(data.score);
+  const score = Number.isFinite(scoreRaw) ? Math.max(0, Math.min(100, scoreRaw)) : 0;
+  const websiteSignal = (data.websiteSignal ?? 'unknown') as LocalLead['websiteSignal'];
+  const status = (data.status ?? 'new') as LocalLeadStatus;
+  const track = (data.track === 'jurivo' ? 'jurivo' : 'virtara') as LocalLead['track'];
+
+  return {
+    id,
+    googlePlaceId: data.googlePlaceId ?? data.placeId ?? '',
+    name: data.name ?? 'Unknown business',
+    phone: data.phone ?? data.phoneNumber ?? undefined,
+    websiteUrl: data.websiteUrl ?? data.website ?? undefined,
+    address: data.address ?? data.formattedAddress ?? undefined,
+    lat: typeof data.lat === 'number' ? data.lat : undefined,
+    lng: typeof data.lng === 'number' ? data.lng : undefined,
+    category: data.category ?? data.primaryType ?? 'uncategorized',
+    primaryType: data.primaryType ?? undefined,
+    track,
+    area: data.area ?? '',
+    suburb: data.suburb ?? undefined,
+    websiteSignal: ['none', 'facebook_only', 'weak', 'ok', 'unknown'].includes(websiteSignal)
+      ? websiteSignal
+      : 'unknown',
+    hasWebsite: typeof data.hasWebsite === 'boolean' ? data.hasWebsite : undefined,
+    rating: typeof data.rating === 'number' ? data.rating : undefined,
+    reviewCount: typeof data.reviewCount === 'number' ? data.reviewCount : undefined,
+    score,
+    scoreReasons: Array.isArray(data.scoreReasons) ? data.scoreReasons.map(String) : [],
+    status: ['new', 'reviewing', 'qualified', 'disqualified', 'converted'].includes(status)
+      ? status
+      : 'new',
+    customerId: data.customerId ?? undefined,
+    source: data.source ?? 'google_places',
+    lastFetchedAt: data.lastFetchedAt ?? null,
+    createdAt: data.createdAt ?? null,
+    updatedAt: data.updatedAt ?? null,
+    scanRunId: data.scanRunId ?? undefined,
+    notes: data.notes ?? undefined,
+  };
+}
+
+export function LocalLeadsProvider({ children }: { children: React.ReactNode }) {
+  const [localLeads, setLocalLeads] = useState<LocalLead[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const uid = useAuthUid();
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const unsubscribe = onSnapshot(
+      collection(db, LOCAL_LEADS_COLLECTION),
+      (snapshot) => {
+        const rows = snapshot.docs.map((item) => normalizeLocalLead(item.id, item.data()));
+        rows.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        setLocalLeads(rows);
+        setLastUpdated(new Date());
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('localLeads snapshot error', error);
+        setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, [uid]);
+
+  const updateLeadStatus = async (
+    leadId: string,
+    status: LocalLeadStatus,
+    extra?: { customerId?: string }
+  ) => {
+    const payload: Record<string, any> = {
+      status,
+      updatedAt: serverTimestamp(),
+    };
+    if (extra?.customerId) {
+      payload.customerId = extra.customerId;
+    }
+    await updateDoc(doc(db, LOCAL_LEADS_COLLECTION, leadId), payload);
+  };
+
+  const refreshData = async () => {
+    setLastUpdated(new Date());
+  };
+
+  return (
+    <LocalLeadsContext.Provider
+      value={{ localLeads, isLoading, refreshData, lastUpdated, updateLeadStatus }}
+    >
+      {children}
+    </LocalLeadsContext.Provider>
+  );
+}
+
+export function useLocalLeads() {
+  const context = useContext(LocalLeadsContext);
+  if (!context) throw new Error('useLocalLeads must be used within LocalLeadsProvider');
   return context;
 }
