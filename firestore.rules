@@ -39,6 +39,7 @@ service cloud.firestore {
     match /maintenance_invoices/{id} { allow read, write: if isOperator(); }
     match /expenses/{id}             { allow read, write: if isOperator(); }
     match /subscribers/{id}          { allow read, write: if isOperator(); }
+    match /localLeads/{id}           { allow read, write: if isOperator(); }
 
     // Virtara's own products, and their release logs.
     match /products/{id}             { allow read, write: if isOperator(); }
