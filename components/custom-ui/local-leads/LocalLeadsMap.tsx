@@ -9,9 +9,10 @@ import { LocalLead } from '@/types/local-lead';
 const SANDTON: [number, number] = [28.0567, -26.1076];
 const DEFAULT_ZOOM = 12;
 
-const CARTO_STYLES = {
-  dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-  light: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+/** OpenFreeMap styles (modern MapLibre-compatible JSON; free, no API key). */
+const BASEMAP_STYLES = {
+  dark: 'https://tiles.openfreemap.org/styles/dark',
+  light: 'https://tiles.openfreemap.org/styles/bright',
 } as const;
 
 const WEBSITE_SIGNAL_LABEL: Record<LocalLead['websiteSignal'], string> = {
@@ -47,7 +48,9 @@ export default function LocalLeadsMap({
   const mapRef = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const popupRef = useRef<Popup | null>(null);
+  const basemapReadyRef = useRef(false);
   const [basemap, setBasemap] = useState<'dark' | 'light'>('dark');
+  const [styleEpoch, setStyleEpoch] = useState(0);
   const onSelectRef = useRef(onSelectLead);
   onSelectRef.current = onSelectLead;
 
@@ -58,12 +61,16 @@ export default function LocalLeadsMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: CARTO_STYLES.dark,
+      style: BASEMAP_STYLES.dark,
       center: SANDTON,
       zoom: DEFAULT_ZOOM,
       attributionControl: { compact: true },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    map.once('load', () => {
+      basemapReadyRef.current = true;
+      setStyleEpoch((n) => n + 1);
+    });
     mapRef.current = map;
 
     return () => {
@@ -73,18 +80,30 @@ export default function LocalLeadsMap({
       popupRef.current = null;
       map.remove();
       mapRef.current = null;
+      basemapReadyRef.current = false;
     };
   }, []);
 
+  // Toggle only — skip initial mount (constructor already has dark style).
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    map.setStyle(CARTO_STYLES[basemap]);
+    if (!map || !basemapReadyRef.current) return;
+
+    const onReady = () => {
+      setStyleEpoch((n) => n + 1);
+    };
+
+    map.once('idle', onReady);
+    map.setStyle(BASEMAP_STYLES[basemap]);
+
+    return () => {
+      map.off('idle', onReady);
+    };
   }, [basemap]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || styleEpoch === 0) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
@@ -137,7 +156,7 @@ export default function LocalLeadsMap({
 
       markersRef.current.push(marker);
     }
-  }, [plottable, selectedLeadId]);
+  }, [plottable, selectedLeadId, styleEpoch]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -189,7 +208,7 @@ export default function LocalLeadsMap({
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-400" /> Cold
         </span>
-        <span className="text-spaceAlt/55">Carto basemap · no Google Maps JS</span>
+        <span className="text-spaceAlt/55">OpenFreeMap / OSM · no Google Maps JS</span>
       </div>
     </div>
   );
