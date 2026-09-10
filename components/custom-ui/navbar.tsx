@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, LayoutGrid, LogOut, FileText, Calculator, Mail, Lock, Receipt, Boxes } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, LogOut, FileText, Calculator, Mail, Lock, Receipt, Boxes, BellRing, MapPinned } from "lucide-react";
 import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/firebaseConfig';
 import { toast } from 'sonner';
@@ -60,6 +60,22 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             >
               <LayoutGrid className="mr-2 h-4 w-4" />
               Workspace
+            </Button>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'follow-ups' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              onClick={() => setActiveTab('follow-ups')}
+            >
+              <BellRing className="mr-2 h-4 w-4" />
+              Follow-ups
+            </Button>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start rounded-xl px-3 ${activeTab === 'local-leads' ? 'border border-spaceAccent/40 bg-linear-to-r from-spaceAccent/30 to-brand-blue/20 text-spaceText' : ''}`}
+              onClick={() => setActiveTab('local-leads')}
+            >
+              <MapPinned className="mr-2 h-4 w-4" />
+              Local leads
             </Button>
             <Button 
               variant="ghost" 
