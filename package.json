@@ -28,6 +28,7 @@
     "firebase-admin": "^14.2.0",
     "ldrs": "^1.1.7",
     "lucide-react": "^1.25.0",
+    "maplibre-gl": "^6.9.0",
     "next": "^16.2.11",
     "next-auth": "^4.24.10",
     "pdf-lib": "^1.17.1",

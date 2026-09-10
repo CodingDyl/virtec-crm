@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { ExternalLink, MapPin, RefreshCw, Radar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,15 @@ import {
   LOCAL_LEAD_STATUSES,
   LOCAL_LEAD_TRACKS,
 } from '@/types/local-lead';
+
+const LocalLeadsMap = dynamic(() => import('./LocalLeadsMap'), {
+  ssr: false,
+  loading: () => (
+    <Card className="border-spaceAccent/25 bg-space1/55">
+      <CardContent className="p-6 text-sm text-spaceAlt">Loading map...</CardContent>
+    </Card>
+  ),
+});
 
 const SCORE_BANDS: { value: LocalLeadScoreBand; label: string }[] = [
   { value: 'all', label: 'All scores' },
@@ -81,6 +91,8 @@ export default function LocalLeadsSection() {
   const [search, setSearch] = useState('');
   const [scanning, setScanning] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>();
@@ -123,6 +135,12 @@ export default function LocalLeadsSection() {
       return haystack.includes(q);
     });
   }, [area, category, localLeads, scoreBand, search, status, track]);
+
+  useEffect(() => {
+    if (!selectedLeadId) return;
+    const el = rowRefs.current[selectedLeadId];
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedLeadId]);
 
   const runScan = async () => {
     setScanning(true);
@@ -269,6 +287,14 @@ export default function LocalLeadsSection() {
         </select>
       </div>
 
+      {!isLoading && rows.length > 0 ? (
+        <LocalLeadsMap
+          leads={rows}
+          selectedLeadId={selectedLeadId}
+          onSelectLead={setSelectedLeadId}
+        />
+      ) : null}
+
       {isLoading ? (
         <Card className="border-spaceAccent/25 bg-space1/55">
           <CardContent className="p-6 text-sm text-spaceAlt">Loading local leads...</CardContent>
@@ -302,9 +328,20 @@ export default function LocalLeadsSection() {
               <TableBody>
                 {rows.map((lead) => {
                   const mapHref = mapsUrl(lead);
+                  const rowId = lead.id ?? lead.googlePlaceId;
                   const busy = busyId === lead.id;
+                  const selected = selectedLeadId === rowId;
                   return (
-                    <TableRow key={lead.id ?? lead.googlePlaceId} className="border-spaceAccent/15">
+                    <TableRow
+                      key={rowId}
+                      ref={(node) => {
+                        rowRefs.current[rowId] = node;
+                      }}
+                      onClick={() => setSelectedLeadId(rowId)}
+                      className={`cursor-pointer border-spaceAccent/15 ${
+                        selected ? 'bg-spaceAccent/10' : ''
+                      }`}
+                    >
                       <TableCell className="max-w-[220px]">
                         <div className="font-medium text-spaceText">{lead.name}</div>
                         <div className="mt-1 flex flex-wrap gap-2 text-xs text-spaceAlt/80">
