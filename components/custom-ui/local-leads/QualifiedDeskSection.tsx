@@ -126,13 +126,20 @@ export default function QualifiedDeskSection() {
     if (!leadIds.length) return;
     setEnrichBusy(true);
     try {
+      const statuses = includeReviewing
+        ? (['qualified', 'reviewing'] as const)
+        : (['qualified'] as const);
       const res = await fetch('/api/local-leads/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadIds }),
+        body: JSON.stringify({
+          leadIds,
+          limit: Math.min(100, Math.max(1, leadIds.length)),
+          statuses: [...statuses],
+        }),
       });
       if (res.status === 404 || res.status === 501) {
-        toast.message('Email enrich API not live yet — Backend pending.');
+        toast.message('Enrich API not on this deploy yet — merge Backend PR #10.');
         return;
       }
       if (res.status === 401) {
@@ -144,10 +151,17 @@ export default function QualifiedDeskSection() {
         toast.error(`Enrich failed (${res.status}): ${body.slice(0, 120)}`);
         return;
       }
-      toast.success('Enrich requested.');
+      const summary = (await res.json()) as {
+        enriched?: number;
+        skipped?: number;
+        failed?: number;
+      };
+      toast.success(
+        `Enrich done — ${summary.enriched ?? 0} enriched, ${summary.skipped ?? 0} skipped, ${summary.failed ?? 0} failed.`
+      );
     } catch (error) {
       console.error(error);
-      toast.message('Email enrich API not reachable — Backend pending.');
+      toast.message('Enrich API not reachable — merge/deploy Backend PR #10.');
     } finally {
       setEnrichBusy(false);
     }
