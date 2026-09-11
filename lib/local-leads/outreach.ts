@@ -1,20 +1,29 @@
-import type { LocalLead, LocalLeadOutreachTemplateId } from '@/types/local-lead';
+import type {
+  LocalLead,
+  LocalLeadOutreachPitch,
+  LocalLeadOutreachTemplateId,
+} from '@/types/local-lead';
 
 /** Locked SA cold-lead build bands (ex VAT) — Virtara SMB. */
 export const SA_BUILD_BANDS = {
   starter: 'Starter site R12k–R18k',
   standard: 'Standard site R22k–R35k',
   ecom: 'E-com lite R35k–R55k',
+  law: 'Law firm site R22k–R40k',
 } as const;
 
 export type OutreachTemplate = {
   id: LocalLeadOutreachTemplateId;
+  pitch: LocalLeadOutreachPitch;
   label: string;
   subject: string;
   body: string;
 };
 
-function priceHint(lead: LocalLead): string {
+function priceHint(lead: LocalLead, pitch: LocalLeadOutreachPitch): string {
+  if (pitch === 'spec_build' || lead.track === 'jurivo') {
+    return SA_BUILD_BANDS.law;
+  }
   const cat = (lead.category || '').toLowerCase();
   if (cat.includes('shop') || cat.includes('store') || cat.includes('retail')) {
     return SA_BUILD_BANDS.ecom;
@@ -25,14 +34,41 @@ function priceHint(lead: LocalLead): string {
   return SA_BUILD_BANDS.standard;
 }
 
+function isLawish(lead: LocalLead): boolean {
+  if (lead.track === 'jurivo') return true;
+  const cat = (lead.category || '').toLowerCase();
+  return (
+    cat.includes('attorney') ||
+    cat.includes('lawyer') ||
+    cat.includes('law') ||
+    cat.includes('advocate') ||
+    cat.includes('legal')
+  );
+}
+
 export function renderOutreachTemplate(
   id: LocalLeadOutreachTemplateId,
-  lead: LocalLead
+  lead: LocalLead,
+  pitch: LocalLeadOutreachPitch = lead.outreachPitch || 'standard'
 ): OutreachTemplate {
   const name = lead.name || 'there';
   const area = lead.area || lead.suburb || 'Sandton';
   const category = lead.category || 'business';
-  const band = priceHint(lead);
+  const band = priceHint(lead, pitch);
+  const law = isLawish(lead);
+
+  if (pitch === 'spec_build') {
+    return renderSpecBuild(id, lead, { name, area, category, band, law });
+  }
+  return renderStandard(id, lead, { name, area, category, band });
+}
+
+function renderStandard(
+  id: LocalLeadOutreachTemplateId,
+  lead: LocalLead,
+  ctx: { name: string; area: string; category: string; band: string }
+): OutreachTemplate {
+  const { name, area, category, band } = ctx;
   const care =
     lead.track === 'jurivo'
       ? 'We also run Jurivo for law firms that need a sharper web + intake presence.'
@@ -41,6 +77,7 @@ export function renderOutreachTemplate(
   if (id === 'o1') {
     return {
       id,
+      pitch: 'standard',
       label: 'Outreach 1 — first touch',
       subject: `${name} — quick idea for your ${category} web presence`,
       body: `Hi ${name} team,
@@ -61,6 +98,7 @@ Virtara`,
   if (id === 'o2') {
     return {
       id,
+      pitch: 'standard',
       label: 'Outreach 2 — day 3 follow-up',
       subject: `Re: ${name} — still open to a quick site chat?`,
       body: `Hi again — just bumping this in case it got buried.
@@ -74,16 +112,76 @@ Virtara`,
 
   return {
     id,
+    pitch: 'standard',
     label: 'Outreach 3 — week follow-up',
     subject: `Last note — ${name} web presence`,
-    body: `Hi — last follow-up from me so I’m not noise in your inbox.
+    body: `Hi — last follow-up from me so I'm not noise in your inbox.
 
-If a refreshed site (or Care retainer after build) is on your radar later this year, reply “later” and I’ll check in then. Otherwise I’ll close the loop.
+If a refreshed site (or Care retainer after build) is on your radar later this year, reply "later" and I'll check in then. Otherwise I'll close the loop.
 
 Typical range for ${category} in ${area}: ${band}.
 
 Dylan
 Virtara`,
+  };
+}
+
+function renderSpecBuild(
+  id: LocalLeadOutreachTemplateId,
+  lead: LocalLead,
+  ctx: { name: string; area: string; category: string; band: string; law: boolean }
+): OutreachTemplate {
+  const { name, area, category, band, law } = ctx;
+  const niche = law ? 'law firm' : category;
+  const brandBit = law
+      ? 'practice areas, team, consultation CTA, and trust signals (admissions, associations)'
+      : 'services, proof, and a clear contact path';
+
+  if (id === 'o1') {
+    return {
+      id,
+      pitch: 'spec_build',
+      label: 'Spec build 1 — show the draft site',
+      subject: `${name} — I built a draft ${niche} website for you`,
+      body: `Hi ${name} team,
+
+I put together a draft ${niche} website concept for ${name} in ${area} — not a generic template dump. It covers ${brandBit}, mobile-first, and ready for your brand colours / logo / photos.
+
+If you like the direction, we can finalise branding and go live. Typical finish range for this level of site: ${band} (ex VAT), 40–50% to proceed once you approve the direction.
+
+Happy to walk you through it on a short call (or send the preview link).
+
+Dylan
+Virtara${law ? ' / Jurivo' : ''}`,
+    };
+  }
+
+  if (id === 'o2') {
+    return {
+      id,
+      pitch: 'spec_build',
+      label: 'Spec build 2 — day 3 follow-up',
+      subject: `Re: draft site for ${name}`,
+      body: `Hi again — checking you saw the draft ${niche} site concept for ${name}.
+
+Happy to tweak homepage messaging or practice/service blocks before we talk numbers (${band}). If it's not a fit, a one-line "no" is perfect and I'll close the loop.
+
+Dylan
+Virtara${law ? ' / Jurivo' : ''}`,
+    };
+  }
+
+  return {
+    id,
+    pitch: 'spec_build',
+    label: 'Spec build 3 — week follow-up',
+    subject: `Closing loop — ${name} draft website`,
+    body: `Hi — last note from me on the draft site for ${name}.
+
+I'll park the concept for now. If you want it later this year, reply "revive" and I'll reopen it. Otherwise wishing you a strong remainder of the year in ${area}.
+
+Dylan
+Virtara${law ? ' / Jurivo' : ''}`,
   };
 }
 

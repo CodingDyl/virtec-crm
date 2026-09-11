@@ -741,6 +741,9 @@ function normalizeLocalLead(id: string, data: Record<string, any>): LocalLead {
     selectedTemplateId: ['o1', 'o2', 'o3'].includes(data.selectedTemplateId)
       ? data.selectedTemplateId
       : undefined,
+    outreachPitch: ['standard', 'spec_build'].includes(data.outreachPitch)
+      ? data.outreachPitch
+      : 'standard',
   };
 }
 

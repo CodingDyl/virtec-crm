@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useLocalLeads } from '@/contexts/DataContexts';
-import type { LocalLead, LocalLeadOutreachTemplateId } from '@/types/local-lead';
+import type { LocalLead, LocalLeadOutreachPitch, LocalLeadOutreachTemplateId } from '@/types/local-lead';
 import { getOutreachDue, renderOutreachTemplate } from '@/lib/local-leads/outreach';
 
 function toMillis(value: unknown): number {
@@ -23,11 +23,12 @@ function toMillis(value: unknown): number {
   return Number.isFinite(t) ? t : 0;
 }
 
-export default function QualifiedDeskSection() {
+export default function QualifiedDeskSection({ embedded = false }: { embedded?: boolean } = {}) {
   const { localLeads, isLoading, lastUpdated, updateLeadFields } = useLocalLeads();
   const [includeReviewing, setIncludeReviewing] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState<LocalLeadOutreachTemplateId>('o1');
+  const [pitch, setPitch] = useState<LocalLeadOutreachPitch>('standard');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [enrichBusy, setEnrichBusy] = useState(false);
 
@@ -55,10 +56,13 @@ export default function QualifiedDeskSection() {
   const activeTemplate: LocalLeadOutreachTemplateId =
     (selected?.selectedTemplateId as LocalLeadOutreachTemplateId | undefined) || templateId;
 
+  const activePitch: LocalLeadOutreachPitch =
+    pitch || selected?.outreachPitch || (selected?.track === 'jurivo' ? 'spec_build' : 'standard');
+
   const draft = useMemo(() => {
     if (!selected) return null;
-    return renderOutreachTemplate(activeTemplate, selected);
-  }, [selected, activeTemplate]);
+    return renderOutreachTemplate(activeTemplate, selected, activePitch);
+  }, [selected, activeTemplate, activePitch]);
 
   const markSent = async (lead: LocalLead, stage: LocalLeadOutreachTemplateId) => {
     if (!lead.id) return;
@@ -70,6 +74,7 @@ export default function QualifiedDeskSection() {
         [field]: new Date(),
         outreachStage: stage,
         selectedTemplateId: stage,
+        outreachPitch: activePitch,
       });
       toast.success(`Marked ${stage.toUpperCase()} sent (draft only — no email fired).`);
     } catch (error) {
@@ -171,9 +176,11 @@ export default function QualifiedDeskSection() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="virtara-display text-2xl text-spaceText">Qualified desk</h2>
-          <p className="mt-1 text-sm text-spaceAlt/80">
-            Qualified pipeline → owner email → O1/O2/O3 drafts. No live sends (Attach HOLD).
+          {!embedded ? (
+            <h2 className="virtara-display text-2xl text-spaceText">Qualified desk</h2>
+          ) : null}
+          <p className={`${embedded ? '' : 'mt-1 '}text-sm text-spaceAlt/80`}>
+            Owner email → O1/O2/O3 drafts (standard or speculative build). No live sends (Attach HOLD).
           </p>
           {lastUpdated ? (
             <p className="mt-1 text-xs text-spaceAlt/60">
@@ -235,6 +242,7 @@ export default function QualifiedDeskSection() {
                         onClick={() => {
                           setSelectedId(id);
                           setTemplateId(lead.selectedTemplateId || due.next || 'o1');
+                          setPitch(lead.outreachPitch || (lead.track === 'jurivo' ? 'spec_build' : 'standard'));
                         }}
                       >
                         <td className="px-3 py-2">
@@ -290,6 +298,28 @@ export default function QualifiedDeskSection() {
                   >
                     Enrich email
                   </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  {(
+                    [
+                      { id: 'standard' as const, label: 'Standard pitch' },
+                      { id: 'spec_build' as const, label: 'Spec build (law)' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setPitch(opt.id)}
+                      className={`rounded-md px-2 py-1 text-[11px] ${
+                        activePitch === opt.id
+                          ? 'bg-brand-blue/25 text-brand-sky'
+                          : 'text-spaceAlt/70 hover:text-spaceText'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
 
                 <div className="flex flex-wrap gap-1">

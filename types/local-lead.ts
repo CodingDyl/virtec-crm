@@ -37,6 +37,9 @@ export type LocalLeadOutreachStage =
 
 export type LocalLeadOutreachTemplateId = 'o1' | 'o2' | 'o3';
 
+/** standard = cold pitch to build; spec_build = we already designed/built a draft site (esp. law). */
+export type LocalLeadOutreachPitch = 'standard' | 'spec_build';
+
 export interface LocalLead {
   id?: string;
   googlePlaceId: string;
@@ -77,7 +80,13 @@ export interface LocalLead {
   outreach3SentAt?: any;
   outreachRepliedAt?: any;
   selectedTemplateId?: LocalLeadOutreachTemplateId;
+  outreachPitch?: LocalLeadOutreachPitch;
 }
+
+export const LOCAL_LEAD_OUTREACH_PITCHES: LocalLeadOutreachPitch[] = [
+  'standard',
+  'spec_build',
+];
 
 export const LOCAL_LEADS_COLLECTION = 'localLeads';
 
