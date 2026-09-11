@@ -27,6 +27,16 @@ export type LocalLeadEnrichSource =
   | 'enrichment_api'
   | 'none';
 
+export type LocalLeadOutreachStage =
+  | 'none'
+  | 'o1'
+  | 'o2'
+  | 'o3'
+  | 'replied'
+  | 'stopped';
+
+export type LocalLeadOutreachTemplateId = 'o1' | 'o2' | 'o3';
+
 export interface LocalLead {
   id?: string;
   googlePlaceId: string;
@@ -61,6 +71,12 @@ export interface LocalLead {
   enrichedAt?: any;
   enrichSource?: LocalLeadEnrichSource;
   enrichError?: string | null;
+  outreachStage?: LocalLeadOutreachStage;
+  outreach1SentAt?: any;
+  outreach2SentAt?: any;
+  outreach3SentAt?: any;
+  outreachRepliedAt?: any;
+  selectedTemplateId?: LocalLeadOutreachTemplateId;
 }
 
 export const LOCAL_LEADS_COLLECTION = 'localLeads';
@@ -87,6 +103,15 @@ export const LOCAL_LEAD_ENRICH_SOURCES: LocalLeadEnrichSource[] = [
   'website_contact_page',
   'enrichment_api',
   'none',
+];
+
+export const LOCAL_LEAD_OUTREACH_STAGES: LocalLeadOutreachStage[] = [
+  'none',
+  'o1',
+  'o2',
+  'o3',
+  'replied',
+  'stopped',
 ];
 
 export type LocalLeadScoreBand = 'all' | 'hot' | 'warm' | 'cold';

@@ -722,13 +722,18 @@ function normalizeLocalLead(id: string, data: Record<string, any>): LocalLead {
       return ['high', 'medium', 'low', 'none'].includes(raw) ? raw : undefined;
     })(),
     enrichedAt: data.enrichedAt ?? null,
-    enrichSource: data.enrichSource ?? undefined,
+    enrichSource: [
+      'website_mailto',
+      'website_contact_page',
+      'enrichment_api',
+      'none',
+    ].includes(data.enrichSource)
+      ? data.enrichSource
+      : undefined,
     enrichError: data.enrichError ?? undefined,
     outreachStage: ['none', 'o1', 'o2', 'o3', 'replied', 'stopped'].includes(data.outreachStage)
       ? data.outreachStage
-      : data.outreachStage
-        ? 'none'
-        : 'none',
+      : 'none',
     outreach1SentAt: data.outreach1SentAt ?? null,
     outreach2SentAt: data.outreach2SentAt ?? null,
     outreach3SentAt: data.outreach3SentAt ?? null,
