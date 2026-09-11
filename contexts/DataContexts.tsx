@@ -672,6 +672,7 @@ interface LocalLeadsContextType {
   refreshData: () => Promise<void>;
   lastUpdated: Date | null;
   updateLeadStatus: (leadId: string, status: LocalLeadStatus, extra?: { customerId?: string }) => Promise<void>;
+  updateLeadFields: (leadId: string, fields: Record<string, unknown>) => Promise<void>;
 }
 
 const LocalLeadsContext = createContext<LocalLeadsContextType | undefined>(undefined);
@@ -715,6 +716,25 @@ function normalizeLocalLead(id: string, data: Record<string, any>): LocalLead {
     updatedAt: data.updatedAt ?? null,
     scanRunId: data.scanRunId ?? undefined,
     notes: data.notes ?? undefined,
+    ownerEmail: data.ownerEmail ?? undefined,
+    emailConfidence: ['high', 'medium', 'low', 'none'].includes(data.emailConfidence)
+      ? data.emailConfidence
+      : undefined,
+    enrichedAt: data.enrichedAt ?? null,
+    enrichSource: data.enrichSource ?? undefined,
+    enrichError: data.enrichError ?? undefined,
+    outreachStage: ['none', 'o1', 'o2', 'o3', 'replied', 'stopped'].includes(data.outreachStage)
+      ? data.outreachStage
+      : data.outreachStage
+        ? 'none'
+        : 'none',
+    outreach1SentAt: data.outreach1SentAt ?? null,
+    outreach2SentAt: data.outreach2SentAt ?? null,
+    outreach3SentAt: data.outreach3SentAt ?? null,
+    outreachRepliedAt: data.outreachRepliedAt ?? null,
+    selectedTemplateId: ['o1', 'o2', 'o3'].includes(data.selectedTemplateId)
+      ? data.selectedTemplateId
+      : undefined,
   };
 }
 
@@ -764,13 +784,20 @@ export function LocalLeadsProvider({ children }: { children: React.ReactNode }) 
     await updateDoc(doc(db, LOCAL_LEADS_COLLECTION, leadId), payload);
   };
 
+  const updateLeadFields = async (leadId: string, fields: Record<string, unknown>) => {
+    await updateDoc(doc(db, LOCAL_LEADS_COLLECTION, leadId), {
+      ...fields,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
   const refreshData = async () => {
     setLastUpdated(new Date());
   };
 
   return (
     <LocalLeadsContext.Provider
-      value={{ localLeads, isLoading, refreshData, lastUpdated, updateLeadStatus }}
+      value={{ localLeads, isLoading, refreshData, lastUpdated, updateLeadStatus, updateLeadFields }}
     >
       {children}
     </LocalLeadsContext.Provider>

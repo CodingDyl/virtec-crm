@@ -47,6 +47,9 @@ const PasswordsPage = dynamic(() => import('../app/passwords/page'), {
 const LocalLeadsSection = dynamic(() => import('./custom-ui/local-leads/LocalLeadsSection'), {
   loading: () => <div>Loading...</div>
 })
+const QualifiedDeskSection = dynamic(() => import('./custom-ui/local-leads/QualifiedDeskSection'), {
+  loading: () => <div>Loading...</div>
+})
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview')
@@ -68,6 +71,7 @@ export function Dashboard() {
               <TabsTrigger value="workspace" onClick={() => setActiveTab('workspace')}>Workspace</TabsTrigger>
               <TabsTrigger value="follow-ups" onClick={() => setActiveTab('follow-ups')}>Follow-ups</TabsTrigger>
               <TabsTrigger value="local-leads" onClick={() => setActiveTab('local-leads')}>Local leads</TabsTrigger>
+              <TabsTrigger value="qualified-desk" onClick={() => setActiveTab('qualified-desk')}>Qualified</TabsTrigger>
               <TabsTrigger value="quotes" onClick={() => setActiveTab('quotes')}>Quotes</TabsTrigger>
               <TabsTrigger value="expenses" onClick={() => setActiveTab('expenses')}>Expenses</TabsTrigger>
               <TabsTrigger value="products" onClick={() => setActiveTab('products')}>Products</TabsTrigger>
@@ -89,6 +93,9 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="local-leads" className="space-y-4">
               <LocalLeadsSection />
+            </TabsContent>
+            <TabsContent value="qualified-desk" className="space-y-4">
+              <QualifiedDeskSection />
             </TabsContent>
             <TabsContent value="generate-quote" className="space-y-4">
               <GenerateQuote />
