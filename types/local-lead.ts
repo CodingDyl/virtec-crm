@@ -19,7 +19,7 @@ export type LocalLeadStatus =
   | 'disqualified'
   | 'converted';
 
-export type LocalLeadEmailConfidence = 'high' | 'med' | 'low' | 'none';
+export type LocalLeadEmailConfidence = 'high' | 'medium' | 'low' | 'none';
 
 export type LocalLeadEnrichSource =
   | 'website_mailto'
@@ -77,7 +77,7 @@ export const LOCAL_LEAD_TRACKS: LocalLeadTrack[] = ['virtara', 'jurivo'];
 
 export const LOCAL_LEAD_EMAIL_CONFIDENCES: LocalLeadEmailConfidence[] = [
   'high',
-  'med',
+  'medium',
   'low',
   'none',
 ];

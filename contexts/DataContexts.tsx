@@ -717,9 +717,10 @@ function normalizeLocalLead(id: string, data: Record<string, any>): LocalLead {
     scanRunId: data.scanRunId ?? undefined,
     notes: data.notes ?? undefined,
     ownerEmail: data.ownerEmail ?? undefined,
-    emailConfidence: ['high', 'medium', 'low', 'none'].includes(data.emailConfidence)
-      ? data.emailConfidence
-      : undefined,
+    emailConfidence: (() => {
+      const raw = data.emailConfidence === 'med' ? 'medium' : data.emailConfidence;
+      return ['high', 'medium', 'low', 'none'].includes(raw) ? raw : undefined;
+    })(),
     enrichedAt: data.enrichedAt ?? null,
     enrichSource: data.enrichSource ?? undefined,
     enrichError: data.enrichError ?? undefined,
