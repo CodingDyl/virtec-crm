@@ -19,7 +19,17 @@ import {
   nextDueDate,
   summariseMaintenance,
 } from '@/lib/maintenance';
-import { SERVICE_SKUS, getServiceSku, effectiveMaintenanceAmount } from '@/lib/service-skus';
+import {
+  SiteKind,
+  ServiceLineId,
+  normalizeSiteKind,
+  resolveServiceLines,
+  computeRetainerMonthly,
+  legacySkuFromLines,
+  effectiveMaintenanceAmount,
+  getServiceSku,
+} from '@/lib/service-skus';
+import { RetainerSkuPicker } from '@/components/custom-ui/RetainerSkuPicker';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +57,12 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
     project.maintenanceFrequency ?? DEFAULT_MAINTENANCE_FREQUENCY
   );
   const [amount, setAmount] = useState<number>(project.maintenanceAmount ?? 0);
-  const [skuId, setSkuId] = useState<string>(project.serviceSku ?? '');
+  const [siteKind, setSiteKind] = useState<SiteKind>(
+    normalizeSiteKind(project.projectType, project.siteKind)
+  );
+  const [serviceLines, setServiceLines] = useState<ServiceLineId[]>(
+    resolveServiceLines(project)
+  );
   const [saving, setSaving] = useState(false);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -55,9 +70,23 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
   // Re-seed when a different maintenance project is selected.
   useEffect(() => {
     setFrequency(project.maintenanceFrequency ?? DEFAULT_MAINTENANCE_FREQUENCY);
-    setAmount(project.maintenanceAmount ?? effectiveMaintenanceAmount(project));
-    setSkuId(project.serviceSku ?? '');
+    const lines = resolveServiceLines(project);
+    const kind = normalizeSiteKind(project.projectType, project.siteKind);
+    setSiteKind(kind);
+    setServiceLines(lines);
+    setAmount(
+      lines.length > 0
+        ? computeRetainerMonthly(kind, lines)
+        : (project.maintenanceAmount ?? effectiveMaintenanceAmount(project))
+    );
   }, [project.id]);
+
+  useEffect(() => {
+    if (serviceLines.length === 0) return;
+    const total = computeRetainerMonthly(siteKind, serviceLines);
+    setAmount(total);
+    setFrequency('monthly');
+  }, [siteKind, serviceLines]);
 
   /** Invoices billed against this project — the one-to-many side of the link. */
   const projectInvoices = useMemo(
@@ -78,22 +107,31 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
   const dueDate = nextDueDate(project.maintenanceFrequency, summary.lastInvoicedAt);
   const overdue = dueDate ? dueDate.getTime() < Date.now() : false;
 
-  const annualRun = effectiveMaintenanceAmount({ maintenanceAmount: amount, serviceSku: skuId || null }) * cyclesPerYear(frequency);
+  const annualRun = effectiveMaintenanceAmount({
+    maintenanceAmount: amount,
+    serviceLines,
+    siteKind,
+    serviceSku: legacySkuFromLines(serviceLines),
+  }) * cyclesPerYear(frequency);
 
   const handleSaveBilling = async () => {
     setSaving(true);
     try {
+      const legacySku = legacySkuFromLines(serviceLines);
       await updateDoc(doc(db, 'projects', project.id), {
-        maintenanceFrequency: frequency,
+        maintenanceFrequency: serviceLines.length > 0 ? 'monthly' : frequency,
         maintenanceAmount: amount,
-        serviceSku: skuId || null,
+        siteKind,
+        serviceLines,
+        serviceSku: legacySku,
       });
-      const skuLabel = getServiceSku(skuId)?.name;
+      const skuLabel = getServiceSku(legacySku)?.name;
+      const linesLabel = serviceLines.length ? serviceLines.join('+') : 'custom';
       await logActivity(
         'project',
         project.id,
         'maintenance',
-        `Maintenance billing set to ${frequencyLabel(frequency)} at ${formatRand(amount)} per cycle${skuLabel ? ` (${skuLabel} SKU)` : ''}`
+        `Maintenance billing set to ${frequencyLabel(serviceLines.length > 0 ? 'monthly' : frequency)} at ${formatRand(amount)} per cycle (${siteKind} ${linesLabel}${skuLabel ? ` / ${skuLabel}` : ''})`
       );
       toast.success('Billing cycle saved.');
     } catch (error) {
@@ -221,29 +259,13 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
             </select>
           </div>
           <div className="@md:col-span-2">
-            <label htmlFor="maintenance-sku" className="text-sm text-spaceText">Retainer SKU</label>
-            <select
-              id="maintenance-sku"
-              value={skuId}
-              onChange={(e) => {
-                const next = e.target.value;
-                setSkuId(next);
-                const sku = getServiceSku(next);
-                if (sku) {
-                  setAmount(sku.monthlyPriceZar);
-                  setFrequency('monthly');
-                }
-              }}
-              className={`mt-1 ${selectClass}`}
-            >
-              <option value="">Custom amount</option>
-              {SERVICE_SKUS.map((sku) => (
-                <option key={sku.id} value={sku.id}>
-                  {sku.name} — R{sku.monthlyPriceZar.toLocaleString('en-ZA')}/mo
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-spaceAlt/70">Care R1&nbsp;990 · SEO R3&nbsp;990 · Bundle R5&nbsp;490</p>
+            <p className="mb-2 text-sm text-spaceText">Retainer SKUs</p>
+            <RetainerSkuPicker
+              siteKind={siteKind}
+              lines={serviceLines}
+              onSiteKindChange={setSiteKind}
+              onLinesChange={setServiceLines}
+            />
           </div>
           <div>
             <label htmlFor="maintenance-amount" className="text-sm text-spaceText">Amount per cycle (R)</label>
@@ -252,7 +274,10 @@ export function MaintenanceTab({ project }: MaintenanceTabProps) {
               type="text"
               inputMode="numeric"
               value={amount}
-              onChange={(e) => setAmount(e.target.value ? Number(e.target.value.replace(/[^0-9.]/g, '')) : 0)}
+              onChange={(e) => {
+                setServiceLines([]);
+                setAmount(e.target.value ? Number(e.target.value.replace(/[^0-9.]/g, '')) : 0);
+              }}
               className="mt-1 bg-space1 border-spaceAccent text-spaceText"
             />
           </div>

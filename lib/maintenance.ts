@@ -53,6 +53,7 @@ export function normalizeMaintenanceInvoice(id: string, data: AnyRecord): Mainte
     invoiceNumber: data.invoiceNumber ?? undefined,
     projectId: pickValue<string>(data, ['projectId', 'project_id'], ''),
     clientId: pickValue<string>(data, ['clientId', 'client_id'], ''),
+    clientName: pickValue<string>(data, ['clientName', 'client_name'], ''),
     company: data.company ?? '',
     date: data.date ?? null,
     hourlyRate: pickNumber(data, ['hourlyRate', 'hourly_rate'], 0),
@@ -77,23 +78,63 @@ export function invoiceHasCustomerLink(invoice: Pick<MaintenanceInvoice, 'client
 
 /**
  * Resolve a real customer id for an invoice. Prefer the stored clientId; if
- * missing (legacy), fall back through the linked maintenance project. Never use
- * `company` — that field is the issuing brand, not the customer.
+ * missing (legacy), fall back through the linked maintenance project, then
+ * match clientName / non-issuer company against customer records. Never treat
+ * issuer brands (Virtara / Virtec / …) as customers.
  */
 export function resolveInvoiceClientId(
-  invoice: Pick<MaintenanceInvoice, 'clientId' | 'projectId'>,
-  projectsById?: Map<string, Pick<Project, 'id' | 'clientId'>> | Record<string, Pick<Project, 'id' | 'clientId'>>
+  invoice: Pick<MaintenanceInvoice, 'clientId' | 'projectId' | 'company'> & {
+    clientName?: string | null;
+  },
+  projectsById?: Map<string, Pick<Project, 'id' | 'clientId'>> | Record<string, Pick<Project, 'id' | 'clientId'>>,
+  customers?: Array<{ id?: string; companyName?: string; name?: string }>
 ): string {
   const direct = (invoice.clientId ?? '').toString().trim();
   if (direct) return direct;
 
   const projectId = (invoice.projectId ?? '').toString().trim();
-  if (!projectId || !projectsById) return '';
+  if (projectId && projectsById) {
+    const project =
+      projectsById instanceof Map ? projectsById.get(projectId) : projectsById[projectId];
+    const fromProject = (project?.clientId ?? '').toString().trim();
+    if (fromProject) return fromProject;
+  }
 
-  const project =
-    projectsById instanceof Map ? projectsById.get(projectId) : projectsById[projectId];
-  return (project?.clientId ?? '').toString().trim();
+  if (!customers || customers.length === 0) return '';
+
+  const normalize = (value?: string | null) =>
+    (value ?? '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+  const issuerNames = new Set(['virtara', 'virtec', 'virtec projects', 'three sixty development', 'dylan petzer']);
+  const isIssuer = (value?: string | null) => {
+    const n = normalize(value);
+    if (!n) return true;
+    if (issuerNames.has(n)) return true;
+    for (const issuer of issuerNames) {
+      if (n === issuer || n.startsWith(`${issuer} `) || n.endsWith(` ${issuer}`)) return true;
+    }
+    return false;
+  };
+
+  const byName = new Map<string, string>();
+  for (const customer of customers) {
+    const id = (customer.id ?? '').toString().trim();
+    if (!id) continue;
+    for (const raw of [customer.companyName, customer.name]) {
+      const key = normalize(raw);
+      if (!key || isIssuer(key)) continue;
+      if (!byName.has(key)) byName.set(key, id);
+    }
+  }
+
+  for (const raw of [invoice.clientName, invoice.company]) {
+    if (!raw || isIssuer(raw)) continue;
+    const hit = byName.get(normalize(raw));
+    if (hit) return hit;
+  }
+
+  return '';
 }
+
 
 /** Patch to write when attaching / repairing an invoice's customer + project link. */
 export function invoiceCustomerLinkPatch(args: {

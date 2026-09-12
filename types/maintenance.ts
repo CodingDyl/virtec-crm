@@ -29,6 +29,8 @@ export interface MaintenanceInvoice {
    * never fall back to `company`, which is the issuing entity (Virtara etc.).
    */
   clientId: string;
+  /** Customer display name when known (not the issuer). */
+  clientName?: string;
   /** Issuing company / brand on the PDF (Virtara, Three Sixty, …) — not the customer. */
   company: string;
   date: any; // Firestore Timestamp

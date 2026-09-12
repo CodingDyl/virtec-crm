@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -27,7 +27,8 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { buildCommandCentreSummary, CommandCentreSummary } from '@/lib/business-command-centre';
 import { formatZAR, monthlySpendSeries } from '@/lib/expenses';
 import { effectiveDueDate, getFollowUpDisplayMeta } from '@/lib/follow-ups';
-import { invoiceLabel } from '@/lib/maintenance';
+import { invoiceLabel, resolveInvoiceClientId } from '@/lib/maintenance';
+import { proposeInvoiceCustomerLinks } from '@/lib/invoice-link-repair';
 import { pickNumber, toDate } from '@/lib/firestore-schema';
 import { projectsDueSilencePause, silencePausePatch, SILENCE_PAUSE_REASON } from '@/lib/delivery-ops';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -190,6 +191,46 @@ function TodayQueue({ summary, silenceAlerts }: { summary: CommandCentreSummary;
 }
 
 function CashCollectionPanel({ summary }: { summary: CommandCentreSummary }) {
+  const { invoices } = useMaintenanceInvoices();
+  const { customers } = useCustomers();
+  const { projects } = useProjects();
+  const [repairing, setRepairing] = useState(false);
+
+  const unpaidUnlinked = useMemo(() => {
+    const projectsById = new Map(projects.map((p) => [p.id, p]));
+    return invoices.filter((invoice) => {
+      if (invoice.status === 'paid') return false;
+      return !resolveInvoiceClientId(invoice, projectsById, customers);
+    });
+  }, [invoices, projects, customers]);
+
+  const repairCustomerLinks = async () => {
+    setRepairing(true);
+    try {
+      const candidates = invoices.filter((invoice) => invoice.status !== 'paid');
+      const patches = proposeInvoiceCustomerLinks(candidates, customers, projects).filter((patch) => {
+        const inv = candidates.find((i) => i.id === patch.invoiceId);
+        return inv && !(inv.clientId ?? '').toString().trim();
+      });
+      let fixed = 0;
+      for (const patch of patches) {
+        await updateDoc(doc(db, 'maintenance_invoices', patch.invoiceId), {
+          clientId: patch.clientId,
+          clientName: patch.clientName,
+          ...(patch.projectId ? { projectId: patch.projectId } : {}),
+        });
+        fixed += 1;
+      }
+      const remaining = Math.max(0, unpaidUnlinked.length - fixed);
+      toast.success(`Repaired ${fixed} invoice link${fixed === 1 ? '' : 's'} · ${remaining} still unlinked`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not repair customer links.');
+    } finally {
+      setRepairing(false);
+    }
+  };
+
   return (
     <SectionCard title="Money Owed" description="Unpaid maintenance invoices grouped by customer." icon={HandCoins}>
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
@@ -206,6 +247,23 @@ function CashCollectionPanel({ summary }: { summary: CommandCentreSummary }) {
           </p>
         </div>
       </div>
+      {unpaidUnlinked.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
+          <p className="text-xs text-yellow-200">
+            {unpaidUnlinked.length} unpaid invoice{unpaidUnlinked.length === 1 ? '' : 's'} missing a customer link
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={repairing}
+            onClick={repairCustomerLinks}
+            className="border-yellow-500/40 bg-space2 text-spaceText"
+          >
+            {repairing ? 'Repairing…' : 'Repair customer links'}
+          </Button>
+        </div>
+      )}
       {summary.cash.topCustomers.length === 0 ? (
         <PanelEmpty>No outstanding maintenance invoices.</PanelEmpty>
       ) : (
@@ -224,7 +282,6 @@ function CashCollectionPanel({ summary }: { summary: CommandCentreSummary }) {
     </SectionCard>
   );
 }
-
 function PipelinePanel({ summary }: { summary: CommandCentreSummary }) {
   return (
     <SectionCard title="Pipeline" description="Quote value, conversion pressure, and stale decisions." icon={LineChart}>

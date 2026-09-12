@@ -28,7 +28,14 @@ export interface Project {
   maintenanceFrequency?: MaintenanceFrequency;
   /** Expected charge per billing cycle, in Rand. */
   maintenanceAmount?: number;
-  /** Virtara recurring SKU: care | seo | bundle */
+  /** Website vs e-commerce retainer matrix row. */
+  siteKind?: 'website' | 'ecommerce' | null;
+  /** Stackable retainer lines: hosting / maintenance / seo. */
+  serviceLines?: Array<'hosting' | 'maintenance' | 'seo'> | null;
+  /**
+   * @deprecated Flat package SKU — prefer serviceLines + siteKind.
+   * Still synced when selection matches Care / SEO / Bundle shortcuts.
+   */
   serviceSku?: ServiceSkuId | null;
   /**
    * Delivery Ops: when set, the project is blocked waiting on the client.

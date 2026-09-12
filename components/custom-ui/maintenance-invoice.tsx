@@ -326,7 +326,8 @@ export default function MaintenanceInvoice() {
             // Real customer link — required for cash aggregation (never use issuer company as the key).
             clientId: customerId,
             clientName: customerData.companyName || customerData.name || '',
-            company: customerData.companyName || formData.company,
+            // Issuer brand for PDF only — never the customer identity.
+            company: formData.company,
             date: serverTimestamp(),
             hourlyRate: formData.hourlyRate,
             items: validItems,
@@ -487,9 +488,9 @@ export default function MaintenanceInvoice() {
           </div>
         </div>
 
-        {/* Company Selection */}
+        {/* Issuer brand (PDF) — not the customer */}
         <div className="space-y-2">
-          <Label className="text-spaceText">Company</Label>
+          <Label className="text-spaceText">Issuer (PDF)</Label>
           <Select
             onValueChange={(value) => setFormData({...formData, company: value})}
           >
