@@ -81,7 +81,7 @@ function formatSeen(value: any): string {
   });
 }
 
-export default function LocalLeadsSection() {
+export default function LocalLeadsSection({ embedded = false }: { embedded?: boolean } = {}) {
   const { localLeads, isLoading, lastUpdated, updateLeadStatus } = useLocalLeads();
   const [area, setArea] = useState('all');
   const [category, setCategory] = useState('all');
@@ -223,10 +223,18 @@ export default function LocalLeadsSection() {
     <section className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="virtara-display text-2xl text-spaceText">Local leads</h2>
-          <p className="mt-1 text-sm text-spaceAlt/85">
-            Sandton / local Places pipeline. Review, score-band filter, convert — no outreach send from here.
-          </p>
+          {!embedded ? (
+            <>
+              <h2 className="virtara-display text-2xl text-spaceText">Local leads</h2>
+              <p className="mt-1 text-sm text-spaceAlt/85">
+                Sandton / local Places pipeline. Review, score-band filter, convert — no outreach send from here.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-spaceAlt/85">
+              Scan, filter, qualify. Move hot leads to the Qualified sub-tab for email + drafts.
+            </p>
+          )}
           <p className="mt-1 text-xs text-spaceAlt/65">
             Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Never'} · Showing {rows.length} of {localLeads.length}
           </p>

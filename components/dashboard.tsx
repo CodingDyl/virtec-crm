@@ -44,7 +44,7 @@ const MaintenanceTable = dynamic(() => import('./custom-ui/maintenance-table'), 
 const PasswordsPage = dynamic(() => import('../app/passwords/page'), {
   loading: () => <div>Loading...</div>
 })
-const LocalLeadsSection = dynamic(() => import('./custom-ui/local-leads/LocalLeadsSection'), {
+const LocalLeadsPage = dynamic(() => import('./custom-ui/local-leads/LocalLeadsPage'), {
   loading: () => <div>Loading...</div>
 })
 
@@ -88,7 +88,7 @@ export function Dashboard() {
               <FollowUpsSection />
             </TabsContent>
             <TabsContent value="local-leads" className="space-y-4">
-              <LocalLeadsSection />
+              <LocalLeadsPage />
             </TabsContent>
             <TabsContent value="generate-quote" className="space-y-4">
               <GenerateQuote />
