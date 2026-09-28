@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import LocalLeadsSection from './LocalLeadsSection';
 import QualifiedDeskSection from './QualifiedDeskSection';
+import WebsiteLeadsSection from './WebsiteLeadsSection';
 
-type SubTab = 'pipeline' | 'qualified';
+type SubTab = 'pipeline' | 'qualified' | 'website';
 
 export default function LocalLeadsPage() {
   const [subTab, setSubTab] = useState<SubTab>('pipeline');
@@ -32,6 +33,17 @@ export default function LocalLeadsPage() {
           </button>
           <button
             type="button"
+            onClick={() => setSubTab('website')}
+            className={`rounded-lg px-3 py-1.5 text-xs ${
+              subTab === 'website'
+                ? 'bg-spaceAccent/25 text-spaceAccent'
+                : 'text-spaceAlt/70 hover:text-spaceText'
+            }`}
+          >
+            Website
+          </button>
+          <button
+            type="button"
             onClick={() => setSubTab('qualified')}
             className={`rounded-lg px-3 py-1.5 text-xs ${
               subTab === 'qualified'
@@ -46,6 +58,8 @@ export default function LocalLeadsPage() {
 
       {subTab === 'pipeline' ? (
         <LocalLeadsSection embedded />
+      ) : subTab === 'website' ? (
+        <WebsiteLeadsSection />
       ) : (
         <QualifiedDeskSection embedded />
       )}

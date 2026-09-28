@@ -29,7 +29,7 @@ export class AgentOSAuthError extends Error {
  * Both sides are hashed first so `timingSafeEqual` always compares equal-length
  * buffers — comparing lengths directly would itself leak the key's length.
  */
-function sameSecret(provided: string, expected: string): boolean {
+export function sameSecret(provided: string, expected: string): boolean {
   const a = createHash('sha256').update(provided).digest();
   const b = createHash('sha256').update(expected).digest();
   return timingSafeEqual(a, b);

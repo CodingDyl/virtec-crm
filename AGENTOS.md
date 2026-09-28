@@ -369,6 +369,47 @@ business-logic review:
 - `POST /api/agentos/follow-ups/:id/send` - Send a follow-up email
 - `POST /api/agentos/projects/:id/notes` - Add project notes
 
+## Website leads
+
+Leads from the Virtara and Jurivo websites land in the `inbound_leads`
+collection. They are separate from `localLeads` (Places scans): a person who
+filled in a form, not a business we found.
+
+### POST /api/inbound/leads (websites only)
+
+Called server-to-server by each site's backend. Never from a browser: the key
+must not ship to a client, and the route sends no CORS headers.
+
+- Auth: `Authorization: Bearer <VIRTARA_SITE_LEADS_KEY | JURIVO_SITE_LEADS_KEY>`.
+  The key decides the track. Keys must be 24+ characters and differ from each
+  other and from both AgentOS keys, or the route answers 503.
+- Body (JSON, 16 KB max, unknown fields rejected):
+  `source` (required: start-a-project, contact, seo, starter, professional,
+  enterprise, health-check, audit, demo-request), `name` (required, 120),
+  `email` (required), `phone` (40), `company` (160), `website` (http/https,
+  300), `message` (4000), `details` (up to 12 short answers, 300 each),
+  `consent` (boolean), `utm` ({source, medium, campaign}), `page` (200).
+- 201 `{ id, duplicate: false }`; 200 `{ id, duplicate: true }` when the same
+  email sent the same form on the same site in the last 10 minutes; 400 with
+  `details` listing every problem; 429 over 20 leads a minute per site per
+  instance.
+- If `INBOUND_NOTIFY_EMAIL` and `RESEND_API_KEY` are set, the team gets an
+  email (visitor values escaped, visitor address as reply-to).
+
+Status starts at `new`. Firestore rules let operators read, update and delete
+these leads in the dashboard (Local leads, Website) but never create them.
+
+### GET /api/agentos/inbound-leads (read key)
+
+Newest first. `limit` (default 100, max 500), `status` (new, reviewing,
+replied, won, not_a_fit, spam). Timestamps are ISO strings.
+
+### PATCH /api/agentos/inbound-leads/:id (write key)
+
+Body `{ "status": "new" | "reviewing" | "replied" | "not_a_fit" | "spam" }`.
+Written with an `agentos_audit` record in one transaction. `won` is set in
+the CRM, not from AgentOS.
+
 ## Usage Example
 
 ```bash
