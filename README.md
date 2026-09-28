@@ -34,4 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## AgentOS API Integration
+
+This CRM exposes a read-only API surface under `/api/agentos/*` for AgentOS integration. See [AGENTOS.md](./AGENTOS.md) for complete API documentation, authentication setup, and endpoint details.
+
+**Quick Start:**
+1. Set the `AGENTOS_API_KEY` environment variable
+2. Use Bearer token authentication: `Authorization: Bearer <AGENTOS_API_KEY>`
+3. Access endpoints: `/api/agentos/leads`, `/api/agentos/clients`, `/api/agentos/quotes`, `/api/agentos/projects`, `/api/agentos/follow-ups`, `/api/agentos/revenue-summary`
+
 # virtec-crm
