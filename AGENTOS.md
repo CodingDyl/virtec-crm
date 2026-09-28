@@ -1,6 +1,6 @@
 # AgentOS API Integration
 
-This document describes the read-only API surface exposed to AgentOS for accessing CRM data without connecting AgentOS directly to the production database.
+This document describes the API surface exposed to AgentOS — read-only, plus two narrow write routes — for accessing CRM data without connecting AgentOS directly to the production database.
 
 ## Authentication
 
@@ -305,31 +305,69 @@ All endpoints explicitly exclude credential and password fields:
 - **Projects**: `portalToken` (secret share link) is excluded
 - **General**: No password or authentication token fields are exposed
 
-### Read-Only Access
+### Write Access
 
-All endpoints are strictly read-only. Write operations (creating leads, updating follow-ups, marking invoices as paid, etc.) are **not implemented** in this API surface.
+Two routes can change data, and each can change only the fields listed:
 
-Future write endpoints will require:
-- Additional authentication/authorization mechanisms
-- Audit logging
-- Rate limiting
-- Request validation
+| Route | Fields | Allowed values |
+| --- | --- | --- |
+| `PATCH /api/agentos/follow-ups/:id` | `status`, `snoozedUntil` | `sent`, `dismissed`, `snoozed` (with a future `snoozedUntil`, at most 90 days out) |
+| `PATCH /api/agentos/leads/:id` | `status` | `new`, `reviewing`, `qualified`, `disqualified` |
 
-## Phase 2 Roadmap (Not Implemented)
+Everything else — creating leads, sending email, marking invoices paid,
+converting a lead to a customer, reopening a follow-up — stays in the CRM.
 
-Potential future write endpoints:
+**Authentication.** Writes use a separate key:
+
+```
+Authorization: Bearer <AGENTOS_WRITE_API_KEY>
+```
+
+The read key cannot write and the write key cannot read. If
+`AGENTOS_WRITE_API_KEY` is missing, or equal to `AGENTOS_API_KEY`, both write
+routes answer 503 until it is fixed. Keys are compared in constant time.
+
+**Validation.** A body is read field by field; any field not in the table is
+a 400. Ids must look like Firestore document ids.
+
+**Rules the routes enforce.**
+
+- A follow-up already `sent` or `dismissed` is not changed (409).
+- A `converted` lead is not changed (409) — conversion owns a customer record.
+- Setting a lead to the status it already has is a no-op (`changed: false`).
+- Places rescans preserve `reviewing`, `qualified` and `disqualified`, so a
+  scan does not undo a status set from AgentOS.
+
+**Audit.** Every write lands in one Firestore transaction with an
+`agentos_audit` document: route, document id, and the touched fields before and
+after. Follow-up writes also add an entry to the project's or customer's
+activity log, the same way sending an email from the CRM does. `agentos_audit`
+is written only by the Admin SDK; `firestore.rules` names no rule for it, so
+the catch-all deny keeps it closed to browsers.
+
+**Rate limit.** 30 writes per minute per server instance (429 beyond that).
+Serverless instances do not share memory, so this bounds a runaway loop in
+AgentOS rather than a distributed attack; the write key is the real control.
+
+**Responses.**
+
+```json
+{ "followUp": { "id": "followup123", "status": "sent" } }
+{ "lead": { "id": "abc123", "status": "reviewing", "changed": true } }
+```
+
+Errors: 400 invalid body or id · 401 wrong key · 404 no such document ·
+409 not allowed from its current state · 429 rate limited · 503 write key not
+configured.
+
+## Not Implemented
+
+Still stubs, and not to be added without their own authorization and
+business-logic review:
 
 - `POST /api/agentos/leads` - Create new leads
-- `PATCH /api/agentos/leads/:id` - Update lead status/notes
 - `POST /api/agentos/follow-ups/:id/send` - Send a follow-up email
-- `PATCH /api/agentos/follow-ups/:id` - Update follow-up status
 - `POST /api/agentos/projects/:id/notes` - Add project notes
-
-These are **stub comments only** and should not be implemented without:
-1. Proper authorization design
-2. Validation and business logic review
-3. Audit trail implementation
-4. Rate limiting strategy
 
 ## Usage Example
 
@@ -345,6 +383,10 @@ curl -H "Authorization: Bearer your-api-key-here" \
 # Fetch open follow-ups
 curl -H "Authorization: Bearer your-api-key-here" \
   "https://your-domain.com/api/agentos/follow-ups?status=open"
+
+# Mark a follow-up sent (write key)
+curl -X PATCH -H "Authorization: Bearer your-write-key-here" -H "Content-Type: application/json" \
+  -d '{"status":"sent"}' "https://your-domain.com/api/agentos/follow-ups/followup123"
 ```
 
 ## Monitoring & Maintenance
