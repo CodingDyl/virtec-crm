@@ -186,6 +186,9 @@ Returns project data from the CRM.
 - `completion`: Project completion percentage (0-100)
 - `agreementStatus`: Status of client agreement (`pending`, `approved`, `declined`, `signed`)
 - `portalEnabled`: Whether the client portal is enabled for this project
+- `portalLastViewedAt`: When a person last opened the client portal. Link-preview
+  bots (WhatsApp, Slack, Facebook, mail scanners) and the operator's `?preview=1`
+  do not count. Only the latest view is kept, not a history
 - `maintenanceFrequency`: Billing frequency for maintenance projects (`monthly`, `quarterly`, `biannual`, `annual`)
 - `maintenanceAmount`: Expected charge per billing cycle in Rand
 - `serviceSku`: Virtara recurring SKU (`care`, `seo`, `bundle`)
