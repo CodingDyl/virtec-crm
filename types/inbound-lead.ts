@@ -54,6 +54,9 @@ export interface InboundLead {
   utm?: { source?: string; medium?: string; campaign?: string };
   /** Path the form was on, e.g. `/start-a-project`. */
   page?: string;
+  /** When the lead magnet's email went out, for magnet signups. */
+  nurtureSentAt?: unknown;
+  nurtureError?: string;
   createdAt: unknown;
   updatedAt: unknown;
 }

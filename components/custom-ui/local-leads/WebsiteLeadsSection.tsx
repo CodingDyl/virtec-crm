@@ -126,6 +126,12 @@ export default function WebsiteLeadsSection() {
                     <div className="flex flex-wrap gap-1">
                       <Badge variant="outline" className="capitalize">{lead.track}</Badge>
                       <Badge variant="outline">{lead.source}</Badge>
+                      {lead.nurtureSentAt ? <Badge variant="outline">Guide emailed</Badge> : null}
+                      {lead.nurtureError ? (
+                        <Badge variant="outline" title={lead.nurtureError} className="border-amber-400/40 text-amber-100">
+                          Email not sent
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
 

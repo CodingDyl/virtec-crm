@@ -4,6 +4,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { verifySiteKey } from '@/lib/inbound-auth';
 import { inboundDedupeKey, validateInboundLead, withoutUndefined } from '@/lib/inbound-leads';
 import { notifyInboundLead } from '@/lib/inbound-notify';
+import { sendMagnetEmail } from '@/lib/magnet-emails';
 import { INBOUND_LEADS_COLLECTION, type InboundLeadTrack } from '@/types/inbound-lead';
 
 export const dynamic = 'force-dynamic';
@@ -91,7 +92,8 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    await notifyInboundLead(track, lead, ref.id);
+    // A lead magnet signup gets what they asked for now; the team hears about it too.
+    await Promise.all([sendMagnetEmail(track, lead, ref), notifyInboundLead(track, lead, ref.id)]);
     return NextResponse.json({ id: ref.id, duplicate: false }, { status: 201 });
   } catch (error) {
     console.error('Inbound lead save failed:', error);

@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
           consent: data.consent === true,
           utm: data.utm,
           page: data.page,
+          nurtureSentAt: iso(data.nurtureSentAt),
+          nurtureError: typeof data.nurtureError === 'string' ? data.nurtureError : undefined,
           createdAt: iso(data.createdAt),
           updatedAt: iso(data.updatedAt),
         };

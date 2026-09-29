@@ -411,6 +411,25 @@ Body `{ "status": "new" | "reviewing" | "replied" | "not_a_fit" | "spam" }`.
 Written with an `agentos_audit` record in one transaction. `won` is set in
 the CRM, not from AgentOS.
 
+### Lead magnet emails
+
+A signup whose source is `magnet-<slug>` is sent that magnet's email at once,
+if one is published and switched on for the lead's site. The outcome is on
+the lead as `nurtureSentAt` or `nurtureError` (both in the inbound-leads GET).
+Sender: `VIRTARA_FROM_EMAIL` / `JURIVO_FROM_EMAIL` (else `FROM_EMAIL`), on a
+domain verified in Resend; reply-to `VIRTARA_REPLY_TO` / `JURIVO_REPLY_TO`
+(else the first `INBOUND_NOTIFY_EMAIL`).
+
+#### PUT /api/agentos/lead-magnet-emails/:slug (write key)
+
+Body `{ "track", "subject", "body", "readUrl", "enabled" }`. `body` is plain
+text and must contain `{{link}}`; `{{firstName}}` is optional. `readUrl` must
+be https; the email links to it with `?via=email`. Audited.
+
+#### GET /api/agentos/lead-magnet-emails (read key)
+
+Every published template.
+
 ## Usage Example
 
 ```bash
