@@ -403,6 +403,17 @@ must not ship to a client, and the route sends no CORS headers.
 Status starts at `new`. Firestore rules let operators read, update and delete
 these leads in the dashboard (Local leads, Website) but never create them.
 
+### POST /api/inbound/subscribers (websites only)
+
+The newsletter list (`subscribers`). Browsers cannot write it (Firestore rules
+allow operators only), so a website's server subscribes and unsubscribes
+people here with its site key. Body `{ "action": "subscribe" | "unsubscribe",
+"email", "name" }`, unknown fields rejected, 2 KB max. Always answers
+`{ ok: true }` whether or not the list changed, so it cannot be used to find
+out who is subscribed. Subscribing an unsubscribed address switches it back
+on, since the person just asked; unsubscribing an address not on the list
+does nothing. New rows carry `track` and `source: "website"`.
+
 ### GET /api/agentos/inbound-leads (read key)
 
 Newest first. `limit` (default 100, max 500), `status` (new, reviewing,
