@@ -4,7 +4,7 @@ import { db } from '@/firebase/firebaseConfig'
 import { openStoredFile } from '@/lib/storage-client'
 import { useCustomers, useMaintenanceInvoices, useProjects } from '@/contexts/DataContexts'
 import { MaintenanceInvoice } from '@/types/maintenance'
-import { invoiceLabel } from '@/lib/maintenance'
+import { invoiceLabel, resolveInvoiceClientId } from '@/lib/maintenance'
 import {
   Table,
   TableBody,
@@ -65,6 +65,18 @@ export default function MaintenanceTable() {
     projects.forEach((p) => { map[p.id] = p.projectType || 'Project'; });
     return map;
   }, [projects]);
+
+  const projectsById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+
+  const resolvedClientLabel = (invoice: MaintenanceInvoice) => {
+    const clientId = resolveInvoiceClientId(invoice, projectsById, customers);
+    if (clientId && clients[clientId]) {
+      return clients[clientId].companyName || clients[clientId].name;
+    }
+    const legacyName = (invoice as MaintenanceInvoice & { clientName?: string }).clientName;
+    if (legacyName && legacyName.trim()) return legacyName.trim();
+    return 'Unknown Client';
+  };
 
   const setStatus = (status: string) => {
     if (status === 'paid') {
@@ -378,7 +390,7 @@ export default function MaintenanceTable() {
                     {formatDate(invoice.date)}
                   </TableCell>
                   <TableCell className="text-spaceText">
-                    {clients[invoice.clientId]?.name || 'Unknown Client'}
+                    {resolvedClientLabel(invoice)}
                   </TableCell>
                   <TableCell>
                     {invoice.projectId && projectNames[invoice.projectId] ? (

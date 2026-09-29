@@ -24,14 +24,24 @@ export function HealthBadges({ project, pendingQuotes }: HealthBadgesProps) {
   if (pendingQuotes > 0) {
     badges.push({ label: `${pendingQuotes} pending quote${pendingQuotes > 1 ? 's' : ''}`, cls: 'bg-blue-500/15 text-blue-300 border-blue-500/40' });
   }
-  if (shouldAutoPauseForSilence(project)) {
-    badges.push({ label: 'Silence pause due', cls: 'bg-red-500/15 text-red-300 border-red-500/40' });
+
+  const silencePauseDue =
+    (silenceDays != null && silenceDays >= CLIENT_SILENCE_BUSINESS_DAYS) ||
+    shouldAutoPauseForSilence(project);
+
+  if (silencePauseDue) {
+    const n = silenceDays ?? CLIENT_SILENCE_BUSINESS_DAYS;
+    badges.push({
+      label: `Silence pause (${n} biz days)`,
+      cls: 'bg-red-500/15 text-red-300 border-red-500/40',
+    });
   } else if (silenceDays != null) {
     badges.push({
       label: `${silenceDays}/${CLIENT_SILENCE_BUSINESS_DAYS} biz days waiting`,
       cls: 'bg-orange-500/15 text-orange-300 border-orange-500/40',
     });
   }
+
   if (project.status === 'on-hold') {
     const reason = (project.pauseReason || '').trim();
     const label = reason
