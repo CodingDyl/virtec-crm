@@ -145,6 +145,10 @@ export type LocalLeadsScanSummary = {
   track: LocalLeadTrack | 'all';
   status?: string;
   message?: string;
+  /** Places requests this scan made (and was charged for). */
+  requests?: number;
+  /** The monthly cap ran out, so the scan stopped early. */
+  stoppedByCap?: boolean;
 };
 
 export type LocalLeadEnrichResultItem = {

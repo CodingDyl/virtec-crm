@@ -414,6 +414,24 @@ out who is subscribed. Subscribing an unsubscribed address switches it back
 on, since the person just asked; unsubscribing an address not on the list
 does nothing. New rows carry `track` and `source: "website"`.
 
+### Places scans from AgentOS (local leads)
+
+Finds new candidate businesses in a named area. Spends Google Places money,
+so it is capped and off until you set `PLACES_MONTHLY_REQUEST_CAP` (the most
+requests to pay for in a calendar month, shared by every scan including the
+operator's own). Requests are counted in `places_usage/<YYYY-MM>` before each
+call, so two scans at once cannot both spend the last of it, and a failed
+request still counts. A type shared by several categories (Jurivo's four all
+search "lawyer") is requested once.
+
+- `GET /api/agentos/local-leads/scan-info` (read key): the area presets, the
+  categories (with the most requests each costs) and this month's budget.
+- `POST /api/agentos/local-leads/scan` (write key): body `{ "area": "<preset
+  key>", "track": "virtara" | "jurivo", "categories": ["..."] }`. 503 until the
+  cap is set; 400 for an unknown area or category, or more than 15 requests in
+  one scan; 429 when the month's budget cannot cover it. Existing lead
+  statuses are kept, so a rescan never undoes a decision. Audited.
+
 ### GET /api/agentos/inbound-leads (read key)
 
 Newest first. `limit` (default 100, max 500), `status` (new, reviewing,

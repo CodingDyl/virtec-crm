@@ -40,3 +40,14 @@ export const SCAN_CATEGORIES: ScanCategory[] = [
   { track: 'jurivo', category: 'labour law', includedTypes: ['lawyer'] },
   { track: 'jurivo', category: 'notaries', includedTypes: ['lawyer'] },
 ];
+
+/**
+ * The Places types a set of categories will search, each once.
+ *
+ * Several categories share a type (four Jurivo ones all search "lawyer"), and
+ * a scan asks for each type only once, so this is the most requests it can
+ * make, and what a budget is checked against.
+ */
+export function distinctPlacesTypes(categories: readonly ScanCategory[]): string[] {
+  return [...new Set(categories.flatMap((category) => category.includedTypes))];
+}

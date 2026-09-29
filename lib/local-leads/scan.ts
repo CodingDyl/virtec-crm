@@ -7,6 +7,7 @@ import {
   rateLimitPause,
   searchNearby,
 } from '@/lib/local-leads/places';
+import { reservePlacesRequests } from '@/lib/local-leads/places-budget';
 import { matchesExistingCustomer, scoreLocalLead } from '@/lib/local-leads/score';
 import {
   detectWebsiteSignal,
@@ -26,6 +27,8 @@ export type LocalLeadsScanOptions = {
   maxCategories?: number;
   apiKey: string;
   area?: string;
+  /** Only these category names (from SCAN_CATEGORIES). Omitted means every category for the track. */
+  categories?: string[];
 };
 
 const PRESERVED_STATUSES: LocalLeadStatus[] = [
@@ -76,6 +79,9 @@ export async function runLocalLeadsScan(
   let categories = SCAN_CATEGORIES.filter(
     (c) => trackFilter === 'all' || c.track === trackFilter
   );
+  if (opts.categories && opts.categories.length > 0) {
+    categories = categories.filter((c) => opts.categories!.includes(c.category));
+  }
   if (opts.maxCategories && opts.maxCategories > 0) {
     categories = categories.slice(0, opts.maxCategories);
   }
@@ -88,10 +94,15 @@ export async function runLocalLeadsScan(
     errors: [],
     byCategory: {},
     track: trackFilter,
+    requests: 0,
   };
 
   // Deduplicate within a run (same place can appear under multiple types)
   const seenPlaceIds = new Set<string>();
+  // Several categories search the same Places type (four Jurivo categories
+  // all search "lawyer"). The answer is identical, so it is asked, and paid
+  // for, once; each category still gets to claim its places in order.
+  const searched = new Map<string, Awaited<ReturnType<typeof searchNearby>>>();
 
   for (const cat of categories) {
     if (!summary.byCategory[cat.category]) {
@@ -100,14 +111,26 @@ export async function runLocalLeadsScan(
 
     for (const includedType of cat.includedTypes) {
       try {
-        await rateLimitPause();
-        const places = await searchNearby({
-          lat,
-          lng,
-          radiusMeters,
-          includedType,
-          apiKey,
-        });
+        let places = searched.get(includedType);
+        if (!places) {
+          // Reserved before the request: a failed one may still be billed.
+          const reservation = await reservePlacesRequests(1);
+          if (!reservation.ok) {
+            summary.stoppedByCap = true;
+            summary.message = `Stopped: this month's Places limit (${reservation.budget.cap}) is reached.`;
+            return summary;
+          }
+          summary.requests = (summary.requests ?? 0) + 1;
+          await rateLimitPause();
+          places = await searchNearby({
+            lat,
+            lng,
+            radiusMeters,
+            includedType,
+            apiKey,
+          });
+          searched.set(includedType, places);
+        }
 
         for (const place of places) {
           summary.fetched += 1;
@@ -187,6 +210,8 @@ export async function runLocalLeadsScan(
             : `${cat.category}/${includedType}: ${error?.message || String(error)}`;
         summary.errors.push(message);
         console.error('local-leads Places search failed', message);
+        // A failed search is not retried by the next category with the same type: it may have been billed.
+        if (!searched.has(includedType)) searched.set(includedType, []);
       }
     }
   }
