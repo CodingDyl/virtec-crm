@@ -385,7 +385,8 @@ must not ship to a client, and the route sends no CORS headers.
   other and from both AgentOS keys, or the route answers 503.
 - Body (JSON, 16 KB max, unknown fields rejected):
   `source` (required: start-a-project, contact, seo, starter, professional,
-  enterprise, health-check, audit, demo-request), `name` (required, 120),
+  enterprise, health-check, audit, demo-request, or `magnet-<slug>` for a
+  lead magnet), `name` (required, 120),
   `email` (required), `phone` (40), `company` (160), `website` (http/https,
   300), `message` (4000), `details` (up to 12 short answers, 300 each),
   `consent` (boolean), `utm` ({source, medium, campaign}), `page` (200).

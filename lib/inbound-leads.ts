@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { INBOUND_LEAD_SOURCES, type InboundLeadTrack } from '@/types/inbound-lead';
+import { INBOUND_LEAD_SOURCES, isInboundLeadSource, type InboundLeadTrack } from '@/types/inbound-lead';
 
 /**
  * Validation for leads posted by our websites.
@@ -58,8 +58,8 @@ export function validateInboundLead(body: Record<string, unknown>): { lead?: Cle
   if (extra.length > 0) errors.push(`Unexpected fields: ${extra.join(', ')}`);
 
   const source = text(body, 'source', 40, errors);
-  if (!source || !(INBOUND_LEAD_SOURCES as readonly string[]).includes(source)) {
-    errors.push(`source must be one of: ${INBOUND_LEAD_SOURCES.join(', ')}`);
+  if (!source || !isInboundLeadSource(source)) {
+    errors.push(`source must be one of: ${INBOUND_LEAD_SOURCES.join(', ')}, or magnet-<slug>`);
   }
 
   const name = text(body, 'name', 120, errors);

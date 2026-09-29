@@ -27,6 +27,16 @@ export const INBOUND_LEAD_SOURCES = [
   'demo-request',
 ] as const;
 
+/**
+ * A lead magnet's signups come in as `magnet-<slug>`, one source per magnet,
+ * so each can be counted on its own. New magnets need no change here.
+ */
+export const LEAD_MAGNET_SOURCE = /^magnet-[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
+
+export function isInboundLeadSource(source: string): boolean {
+  return (INBOUND_LEAD_SOURCES as readonly string[]).includes(source) || LEAD_MAGNET_SOURCE.test(source);
+}
+
 export interface InboundLead {
   id: string;
   track: InboundLeadTrack;
