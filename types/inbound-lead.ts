@@ -57,6 +57,8 @@ export interface InboundLead {
   /** When the lead magnet's email went out, for magnet signups. */
   nurtureSentAt?: unknown;
   nurtureError?: string;
+  /** The email was held back on purpose (an address that already got its daily limit). */
+  nurtureSkipped?: string;
   createdAt: unknown;
   updatedAt: unknown;
 }

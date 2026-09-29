@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isPlausibleEmail } from '@/lib/email-address';
 import { INBOUND_LEAD_SOURCES, isInboundLeadSource, type InboundLeadTrack } from '@/types/inbound-lead';
 
 /**
@@ -26,7 +27,6 @@ export interface CleanInboundLead {
 }
 
 const ALLOWED = ['source', 'name', 'email', 'phone', 'company', 'website', 'message', 'details', 'consent', 'utm', 'page'];
-const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]{1,190}\.[A-Za-z]{2,24}$/;
 const DETAIL_KEY = /^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/;
 const MAX_DETAILS = 12;
 
@@ -66,7 +66,7 @@ export function validateInboundLead(body: Record<string, unknown>): { lead?: Cle
   if (!name) errors.push('name is required');
 
   const email = text(body, 'email', 254, errors)?.toLowerCase();
-  if (!email || !EMAIL.test(email)) errors.push('email must be a valid address');
+  if (!email || !isPlausibleEmail(email)) errors.push('email must be a valid address');
 
   let website = text(body, 'website', 300, errors);
   if (website) {

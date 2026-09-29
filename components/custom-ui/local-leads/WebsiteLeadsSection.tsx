@@ -8,6 +8,7 @@ import { db } from '@/firebase/firebaseConfig';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthUid } from '@/hooks/use-auth-uid';
+import { mailtoHref } from '@/lib/email-address';
 import { toDate } from '@/lib/firestore-schema';
 import {
   INBOUND_LEADS_COLLECTION,
@@ -127,6 +128,11 @@ export default function WebsiteLeadsSection() {
                       <Badge variant="outline" className="capitalize">{lead.track}</Badge>
                       <Badge variant="outline">{lead.source}</Badge>
                       {lead.nurtureSentAt ? <Badge variant="outline">Guide emailed</Badge> : null}
+                      {lead.nurtureSkipped ? (
+                        <Badge variant="outline" title={lead.nurtureSkipped}>
+                          Email held back
+                        </Badge>
+                      ) : null}
                       {lead.nurtureError ? (
                         <Badge variant="outline" title={lead.nurtureError} className="border-amber-400/40 text-amber-100">
                           Email not sent
@@ -136,7 +142,7 @@ export default function WebsiteLeadsSection() {
                   </div>
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                    <a className="inline-flex items-center gap-1 text-spaceAccent hover:underline" href={`mailto:${lead.email}`}>
+                    <a className="inline-flex items-center gap-1 text-spaceAccent hover:underline" href={mailtoHref(lead.email)}>
                       <Mail className="size-3.5" aria-hidden="true" />
                       {lead.email}
                     </a>

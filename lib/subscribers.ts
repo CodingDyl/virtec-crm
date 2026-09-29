@@ -1,5 +1,6 @@
 import 'server-only';
 import { FieldValue } from 'firebase-admin/firestore';
+import { isPlausibleEmail } from '@/lib/email-address';
 import { getAdminDb } from '@/lib/firebase-admin';
 import type { InboundLeadTrack } from '@/types/inbound-lead';
 
@@ -15,7 +16,6 @@ import type { InboundLeadTrack } from '@/types/inbound-lead';
 
 export const SUBSCRIBERS_COLLECTION = 'subscribers';
 
-const EMAIL = /^[^\s@<>"',;]{1,64}@[^\s@<>"',;]{1,190}\.[A-Za-z]{2,24}$/;
 
 export interface SubscriberRequest {
   action: 'subscribe' | 'unsubscribe';
@@ -31,7 +31,7 @@ export function validateSubscriberRequest(body: Record<string, unknown>): { requ
   if (body.action !== 'subscribe' && body.action !== 'unsubscribe') errors.push('action must be subscribe or unsubscribe');
 
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-  if (!email || email.length > 254 || !EMAIL.test(email)) errors.push('email must be a valid address');
+  if (!email || !isPlausibleEmail(email)) errors.push('email must be a valid address');
 
   let name: string | undefined;
   if (body.name !== undefined && body.name !== null && body.name !== '') {

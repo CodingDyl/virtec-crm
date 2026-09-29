@@ -449,6 +449,13 @@ the CRM, not from AgentOS.
 A signup whose source is `magnet-<slug>` is sent that magnet's email at once,
 if one is published and switched on for the lead's site. The outcome is on
 the lead as `nurtureSentAt` or `nurtureError` (both in the inbound-leads GET).
+Every email ends with a fixed line saying why it arrived and that ignoring it
+is enough (anyone can enter any address). One address is sent at most 3 guide
+emails a day across all guides and both sites; a signup past that is saved but
+not emailed, and the lead gets `nurtureSkipped` (not `nurtureError`, which
+means a send failed). Email addresses are limited to letters, digits and
+`. _ % + - '` before the `@` (no `? & = / #`), so a stored address cannot turn
+a `mailto:` link into one with a hidden recipient.
 Sender: `VIRTARA_FROM_EMAIL` / `JURIVO_FROM_EMAIL` (else `FROM_EMAIL`), on a
 domain verified in Resend; reply-to `VIRTARA_REPLY_TO` / `JURIVO_REPLY_TO`
 (else the first `INBOUND_NOTIFY_EMAIL`).

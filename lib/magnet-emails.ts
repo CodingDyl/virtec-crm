@@ -1,6 +1,7 @@
 import 'server-only';
-import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, type DocumentReference } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/lib/firebase-admin';
+import { INBOUND_LEADS_COLLECTION } from '@/types/inbound-lead';
 import type { CleanInboundLead } from '@/lib/inbound-leads';
 import type { InboundLeadTrack } from '@/types/inbound-lead';
 
@@ -92,12 +93,27 @@ function firstName(name: string): string {
   return /^[\p{L}][\p{L}'-]{0,29}$/u.test(first) ? first : 'there';
 }
 
+const SITE_LABEL: Record<InboundLeadTrack, string> = { virtara: 'Virtara', jurivo: 'Jurivo' };
+
+/**
+ * Said at the foot of every signup email, and not editable in a template.
+ *
+ * Anyone can type any address into a form, so some of these emails reach a
+ * person who did not ask. This tells them why it arrived and that ignoring it
+ * is enough, which is also what keeps a stray one from becoming a spam
+ * complaint against the sending domain.
+ */
+export function unrequestedNotice(track: InboundLeadTrack): string {
+  return `You got this because someone entered this email address on the ${SITE_LABEL[track]} website to download a guide. If that was not you, just ignore this message.`;
+}
+
 export function renderMagnetEmail(template: MagnetEmail, lead: Pick<CleanInboundLead, 'name'>): { subject: string; text: string; html: string } {
   const link = emailLink(template.readUrl);
   const name = firstName(lead.name);
   const fill = (value: string) => value.replaceAll('{{firstName}}', name);
+  const notice = unrequestedNotice(template.track);
 
-  const text = fill(template.body).replaceAll('{{link}}', link);
+  const text = `${fill(template.body).replaceAll('{{link}}', link)}\n\n--\n${notice}`;
   const html = fill(template.body)
     .split(/\n\s*\n/)
     .map((paragraph) => {
@@ -105,14 +121,43 @@ export function renderMagnetEmail(template: MagnetEmail, lead: Pick<CleanInbound
       return `<p>${parts.join(`<a href="${escapeHtml(link)}">${escapeHtml(link)}</a>`)}</p>`;
     })
     .join('');
+  const footer = `<p style="margin-top:24px;padding-top:12px;border-top:1px solid #ddd;font-size:12px;color:#666">${escapeHtml(notice)}</p>`;
 
-  return { subject: fill(template.subject), text, html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#111">${html}</div>` };
+  return {
+    subject: fill(template.subject),
+    text,
+    html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#111">${html}${footer}</div>`,
+  };
 }
 
 const SENDERS: Record<InboundLeadTrack, { from: string; replyTo: string }> = {
   virtara: { from: 'VIRTARA_FROM_EMAIL', replyTo: 'VIRTARA_REPLY_TO' },
   jurivo: { from: 'JURIVO_FROM_EMAIL', replyTo: 'JURIVO_REPLY_TO' },
 };
+
+/** The most guide emails one address is sent in a day, across every guide and both sites. */
+export const MAX_GUIDE_EMAILS_PER_ADDRESS_PER_DAY = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whether this address has already had its share today.
+ *
+ * Anyone can enter someone else's address, and the limits on the websites are
+ * per visitor and per server instance, so they do not stop many visitors, or
+ * one visitor across many instances, from emailing one person. This counts
+ * what was actually sent to the address, in Virtec, where every path meets.
+ */
+export function overDailyLimit(sentTimes: readonly number[], now: number = Date.now()): boolean {
+  return sentTimes.filter((sentAt) => now - sentAt < DAY_MS).length >= MAX_GUIDE_EMAILS_PER_ADDRESS_PER_DAY;
+}
+
+async function guideEmailsSentToday(email: string): Promise<number[]> {
+  const snapshot = await getAdminDb().collection(INBOUND_LEADS_COLLECTION).where('email', '==', email).limit(100).get();
+  return snapshot.docs.flatMap((doc) => {
+    const sentAt = doc.get('nurtureSentAt');
+    return sentAt instanceof Timestamp ? [sentAt.toMillis()] : [];
+  });
+}
 
 /**
  * Sends the magnet's email to a new signup, if the magnet has one switched
@@ -143,6 +188,13 @@ export async function sendMagnetEmail(track: InboundLeadTrack, lead: CleanInboun
       await record({ nurtureError: `Not sent: set RESEND_API_KEY and ${SENDERS[track].from} (or FROM_EMAIL)` });
       return;
     }
+    if (overDailyLimit(await guideEmailsSentToday(lead.email))) {
+      // Not an error: a failure tells AgentOS to send the guide by hand, and the
+      // reason this was held back is that someone may be misusing the address.
+      await record({ nurtureSkipped: `This address already got ${MAX_GUIDE_EMAILS_PER_ADDRESS_PER_DAY} guide emails today` });
+      return;
+    }
+
     const replyTo = process.env[SENDERS[track].replyTo] || process.env.INBOUND_NOTIFY_EMAIL?.split(',')[0]?.trim();
 
     const { subject, text, html } = renderMagnetEmail(template, lead);
