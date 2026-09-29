@@ -425,7 +425,8 @@ request still counts. A type shared by several categories (Jurivo's four all
 search "lawyer") is requested once.
 
 - `GET /api/agentos/local-leads/scan-info` (read key): the area presets, the
-  categories (with the most requests each costs) and this month's budget.
+  categories (with the Places types each searches; a type shared by several
+  categories is one request) and this month's budget.
 - `POST /api/agentos/local-leads/scan` (write key): body `{ "area": "<preset
   key>", "track": "virtara" | "jurivo", "categories": ["..."] }`. 503 until the
   cap is set; 400 for an unknown area or category, or more than 15 requests in

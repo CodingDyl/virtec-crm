@@ -10,8 +10,9 @@ export const dynamic = 'force-dynamic';
  * GET /api/agentos/local-leads/scan-info
  *
  * What a scan can be pointed at, and what is left to spend this month:
- * the areas, the categories (with the Places requests each costs at most),
- * and the monthly budget. Read-only.
+ * the areas, the categories (with the Places types each searches, so a
+ * caller can count the requests a choice would make), and the monthly
+ * budget. Read-only.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +28,8 @@ export async function GET(request: NextRequest) {
       categories: SCAN_CATEGORIES.map((category) => ({
         category: category.category,
         track: category.track,
-        requests: category.includedTypes.length,
+        // The Places types it searches. A type shared by several categories is one request.
+        types: category.includedTypes,
       })),
       budget,
     });
